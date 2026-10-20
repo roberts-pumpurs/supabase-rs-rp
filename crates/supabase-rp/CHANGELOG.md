@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/supabase-rp-v0.4.0...supabase-rp-v0.5.0) - 2026-10-20
+
+### Other
+
+- *(supabase-rp)* [**breaking**] re-exported typed client moves to 0.13 with computed fields
+
 ## [0.4.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/supabase-rp-v0.3.0...supabase-rp-v0.4.0) - 2026-10-09
 
 ### Other

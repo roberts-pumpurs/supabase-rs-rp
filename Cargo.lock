@@ -2025,7 +2025,7 @@ dependencies = [
 
 [[package]]
 name = "rp-supabase-client"
-version = "0.12.0"
+version = "0.13.0"
 dependencies = [
  "futures",
  "mockito",
@@ -2041,7 +2041,7 @@ dependencies = [
 
 [[package]]
 name = "rp-supabase-client-macros"
-version = "0.12.0"
+version = "0.13.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2050,7 +2050,7 @@ dependencies = [
 
 [[package]]
 name = "rp-supabase-codegen"
-version = "0.12.0"
+version = "0.13.0"
 dependencies = [
  "clap",
  "heck",
@@ -2575,7 +2575,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "supabase-rp"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "mockito",
  "reqwest",

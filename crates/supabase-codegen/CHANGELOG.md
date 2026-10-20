@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.13.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-codegen-v0.12.0...rp-supabase-codegen-v0.13.0) - 2026-10-20
+
+### Added
+
+- *(codegen)* [**breaking**] generate computed fields and require non-null JSON writes ([#37](https://github.com/roberts-pumpurs/supabase-rs-rp/pull/37))
+
+### Other
+
+- *(supabase-rp)* [**breaking**] re-exported typed client moves to 0.13 with computed fields
+
 ### Breaking
 
 - Snapshot format is version 4. Regenerate version 3 snapshots. Public `model::Table` metadata now requires `computed_fields`.
