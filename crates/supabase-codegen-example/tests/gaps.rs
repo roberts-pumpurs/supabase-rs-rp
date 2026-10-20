@@ -2,7 +2,7 @@
 mod database {
     rp_supabase_client::include_schema!("database.rs");
 }
-use database::public::tables::{adapters, skills};
+use database::public::tables::{articles, videos};
 use rp_supabase_client::{
     rp_postgrest::{Count, Postgrest},
     schema::{Nulls, Order, Projection, params},
@@ -10,48 +10,48 @@ use rp_supabase_client::{
 
 rp_supabase_client::projection! {
     #[derive(Debug, PartialEq)]
-    struct Artifact for [database::public::tables::skills, database::public::tables::adapters] { id, name, owner_id }
+    struct Content for [database::public::tables::articles, database::public::tables::videos] { id, name, owner_id }
 }
 rp_supabase_client::projection! {
-    struct Linked for database::public::tables::artifact_links {
+    struct Linked for database::public::tables::content_links {
         id,
-        skill: embed(database::public::tables::artifact_links::relationships::links_skill, Artifact),
-        adapter: embed(database::public::tables::artifact_links::relationships::links_adapter, Artifact),
+        article: embed(database::public::tables::content_links::relationships::links_article, Content),
+        video: embed(database::public::tables::content_links::relationships::links_video, Content),
     }
 }
 
 #[test]
 fn shared_child_retains_each_relationship_target_and_handle() {
-    use database::public::tables::artifact_links;
-    let row: Linked = serde_json::from_str(r#"{"id":4,"skill":{"id":1,"name":"s","owner_id":9},"adapter":{"id":2,"name":"a","owner_id":9}}"#).unwrap();
-    assert_eq!(row.skill.as_ref().unwrap().id, 1);
-    assert_eq!(row.adapter.as_ref().unwrap().id, 2);
-    let raw = artifact_links::query(Postgrest::new("http://localhost").unwrap())
+    use database::public::tables::content_links;
+    let row: Linked = serde_json::from_str(r#"{"id":4,"article":{"id":1,"name":"s","owner_id":9},"video":{"id":2,"name":"a","owner_id":9}}"#).unwrap();
+    assert_eq!(row.article.as_ref().unwrap().id, 1);
+    assert_eq!(row.video.as_ref().unwrap().id, 2);
+    let raw = content_links::query(Postgrest::new("http://localhost").unwrap())
         .select(rp_supabase_client::schema::named::<_, Linked>())
-        .embedded(Linked::skill, |child| {
-            child.eq(skills::columns::owner_id, &9);
+        .embedded(Linked::article, |child| {
+            child.eq(articles::columns::owner_id, &9);
         })
-        .embedded(Linked::adapter, |child| {
-            child.eq(adapters::columns::owner_id, &9);
+        .embedded(Linked::video, |child| {
+            child.eq(videos::columns::owner_id, &9);
         })
         .into_raw();
     let pairs: Vec<_> = raw.query_pairs().collect();
-    assert!(pairs.contains(&("skill.owner_id", "eq.9")));
-    assert!(pairs.contains(&("adapter.owner_id", "eq.9")));
-    assert!(pairs.contains(&("select", "id,skill:skills!links_skill(id,name,owner_id),adapter:adapters!links_adapter(id,name,owner_id)")));
+    assert!(pairs.contains(&("article.owner_id", "eq.9")));
+    assert!(pairs.contains(&("video.owner_id", "eq.9")));
+    assert!(pairs.contains(&("select", "id,article:articles!links_article(id,name,owner_id),video:videos!links_video(id,name,owner_id)")));
 }
 
 #[test]
 fn one_dto_has_two_exact_relation_contracts() {
     assert_eq!(
-        <Artifact as Projection<skills::Row>>::selection(),
+        <Content as Projection<articles::Row>>::selection(),
         "id,name,owner_id"
     );
     assert_eq!(
-        <Artifact as Projection<adapters::Row>>::selection(),
+        <Content as Projection<videos::Row>>::selection(),
         "id,name,owner_id"
     );
-    let row: Artifact = serde_json::from_str(r#"{"id":1,"name":"same","owner_id":9}"#).unwrap();
+    let row: Content = serde_json::from_str(r#"{"id":1,"name":"same","owner_id":9}"#).unwrap();
     assert_eq!((row.id, row.name.as_str(), row.owner_id), (1, "same", 9));
 }
 
@@ -60,14 +60,14 @@ async fn typed_operations_and_pure_pairs_share_wire_grammar() {
     let mut server = mockito::Server::new_async().await;
     let client = Postgrest::new(server.url()).unwrap();
     let values = ["comma,value", "quote\"slash\\", "plain"];
-    let typed = skills::query(client)
-        .select(rp_supabase_client::schema::named::<_, Artifact>())
-        .order_with_nulls(skills::columns::name, Order::Asc, Nulls::Last)
-        .order(skills::columns::id, Order::Desc)
-        .in_(skills::columns::name, values)
+    let typed = articles::query(client)
+        .select(rp_supabase_client::schema::named::<_, Content>())
+        .order_with_nulls(articles::columns::name, Order::Asc, Nulls::Last)
+        .order(articles::columns::id, Order::Desc)
+        .in_(articles::columns::name, values)
         .json_text_eq(
-            skills::columns::manifest,
-            &["nested.key", "fingerprint"],
+            articles::columns::document,
+            &["nested.key", "slug"],
             "literal,\"\\",
         )
         .unwrap()
@@ -81,11 +81,11 @@ async fn typed_operations_and_pure_pairs_share_wire_grammar() {
     assert!(pairs.contains(&("order".into(), "name.asc.nullslast,id.desc".into())));
     assert!(pairs.contains(&("limit".into(), "3".into())));
     let pure = vec![
-        params::projection::<skills::Row, Artifact>(),
-        params::in_(skills::columns::name, values),
+        params::projection::<articles::Row, Content>(),
+        params::in_(articles::columns::name, values),
         params::json_text_eq(
-            skills::columns::manifest,
-            &["nested.key", "fingerprint"],
+            articles::columns::document,
+            &["nested.key", "slug"],
             "literal,\"\\",
         )
         .unwrap(),
@@ -94,10 +94,10 @@ async fn typed_operations_and_pure_pairs_share_wire_grammar() {
         assert!(pairs.contains(&(key.to_string(), value.to_string())));
     }
     assert_eq!(pure[1].1, r#"in.("comma,value","quote\"slash\\","plain")"#);
-    assert_eq!(pure[2].0, "manifest->\"nested.key\"->>fingerprint");
+    assert_eq!(pure[2].0, "document->\"nested.key\"->>slug");
     assert_eq!(pure[2].1, "eq.literal,\"\\");
     let response = server
-        .mock("GET", "/skills")
+        .mock("GET", "/articles")
         .match_query(mockito::Matcher::AllOf(
             pure.iter()
                 .map(|(k, v)| mockito::Matcher::UrlEncoded(k.to_string(), v.to_string()))
@@ -109,9 +109,9 @@ async fn typed_operations_and_pure_pairs_share_wire_grammar() {
         .expect(2)
         .create_async()
         .await;
-    let raw: Vec<Artifact> = typed.fetch().await.unwrap();
-    let independent: Vec<Artifact> = rp_supabase_client::rp_postgrest::reqwest::Client::new()
-        .get(format!("{}/skills", server.url()))
+    let raw: Vec<Content> = typed.fetch().await.unwrap();
+    let independent: Vec<Content> = rp_supabase_client::rp_postgrest::reqwest::Client::new()
+        .get(format!("{}/articles", server.url()))
         .header("range-unit", "items")
         .header("range", "1-2")
         .query(&pure)
@@ -130,7 +130,7 @@ async fn headers_supply_counts_and_minimal_writes_decode_no_rows() {
     let mut server = mockito::Server::new_async().await;
     let client = Postgrest::new(server.url()).unwrap();
     let head = server
-        .mock("HEAD", "/skills")
+        .mock("HEAD", "/articles")
         .match_header("prefer", "count=exact")
         .match_query(mockito::Matcher::AllOf(vec![
             mockito::Matcher::UrlEncoded("limit".into(), "1".into()),
@@ -140,8 +140,8 @@ async fn headers_supply_counts_and_minimal_writes_decode_no_rows() {
         .create_async()
         .await;
     assert_eq!(
-        skills::query(client.clone())
-            .eq(skills::columns::owner_id, &9)
+        articles::query(client.clone())
+            .eq(articles::columns::owner_id, &9)
             .limit(1)
             .count(Count::Exact)
             .await
@@ -150,7 +150,7 @@ async fn headers_supply_counts_and_minimal_writes_decode_no_rows() {
     );
     head.assert_async().await;
     let counted = server
-        .mock("GET", "/adapters")
+        .mock("GET", "/videos")
         .match_header("prefer", "count=exact")
         .match_query(mockito::Matcher::AllOf(vec![
             mockito::Matcher::UrlEncoded("limit".into(), "1".into()),
@@ -160,8 +160,8 @@ async fn headers_supply_counts_and_minimal_writes_decode_no_rows() {
         .with_body(r#"[{"id":1,"name":"same","owner_id":9}]"#)
         .create_async()
         .await;
-    let rows = adapters::query(client.clone())
-        .select(rp_supabase_client::schema::named::<_, Artifact>())
+    let rows = videos::query(client.clone())
+        .select(rp_supabase_client::schema::named::<_, Content>())
         .limit(1)
         .fetch_with_count(Count::Exact)
         .await
@@ -170,7 +170,7 @@ async fn headers_supply_counts_and_minimal_writes_decode_no_rows() {
     assert_eq!(rows.data[0].name, "same");
     counted.assert_async().await;
     let minimal = server
-        .mock("DELETE", "/skills")
+        .mock("DELETE", "/articles")
         .match_header("prefer", "return=minimal")
         .match_query(mockito::Matcher::AllOf(vec![
             mockito::Matcher::UrlEncoded("id".into(), "eq.1".into()),
@@ -179,15 +179,15 @@ async fn headers_supply_counts_and_minimal_writes_decode_no_rows() {
         .with_status(204)
         .create_async()
         .await;
-    skills::query(client.clone())
-        .eq(skills::columns::id, &1)
+    articles::query(client.clone())
+        .eq(articles::columns::id, &1)
         .delete()
         .execute()
         .await
         .unwrap();
     minimal.assert_async().await;
     let affected = server
-        .mock("DELETE", "/adapters")
+        .mock("DELETE", "/videos")
         .match_header("prefer", mockito::Matcher::Regex("return=minimal".into()))
         .match_query(mockito::Matcher::AllOf(vec![
             mockito::Matcher::UrlEncoded("owner_id".into(), "eq.9".into()),
@@ -198,8 +198,8 @@ async fn headers_supply_counts_and_minimal_writes_decode_no_rows() {
         .create_async()
         .await;
     assert_eq!(
-        adapters::query(client)
-            .eq(adapters::columns::owner_id, &9)
+        videos::query(client)
+            .eq(videos::columns::owner_id, &9)
             .delete()
             .execute_with_count(Count::Exact)
             .await
@@ -212,11 +212,11 @@ async fn headers_supply_counts_and_minimal_writes_decode_no_rows() {
 #[tokio::test]
 async fn canonical_body_is_available_without_destructuring() {
     let mut server = mockito::Server::new_async().await;
-    let failure = server.mock("GET", "/skills").with_status(400)
+    let failure = server.mock("GET", "/articles").with_status(400)
         .match_query(mockito::Matcher::UrlEncoded("select".into(), "id,name,owner_id".into()))
         .with_body(r#"{"code":"PGRST100","message":"bad query","details":"parse detail","hint":"try again"}"#).create_async().await;
-    let error = skills::query(Postgrest::new(server.url()).unwrap())
-        .select(rp_supabase_client::schema::named::<_, Artifact>())
+    let error = articles::query(Postgrest::new(server.url()).unwrap())
+        .select(rp_supabase_client::schema::named::<_, Content>())
         .fetch()
         .await
         .unwrap_err();
@@ -233,7 +233,7 @@ async fn canonical_body_is_available_without_destructuring() {
 async fn zero_limit_and_empty_in_are_literal_read_requests() {
     let mut server = mockito::Server::new_async().await;
     let empty = server
-        .mock("GET", "/skills")
+        .mock("GET", "/articles")
         .match_query(mockito::Matcher::AllOf(vec![
             mockito::Matcher::UrlEncoded("limit".into(), "0".into()),
             mockito::Matcher::UrlEncoded("id".into(), "in.()".into()),
@@ -241,9 +241,9 @@ async fn zero_limit_and_empty_in_are_literal_read_requests() {
         .with_body("[]")
         .create_async()
         .await;
-    let rows = skills::query(Postgrest::new(server.url()).unwrap())
-        .select(rp_supabase_client::schema::named::<_, Artifact>())
-        .in_(skills::columns::id, core::iter::empty::<&i64>())
+    let rows = articles::query(Postgrest::new(server.url()).unwrap())
+        .select(rp_supabase_client::schema::named::<_, Content>())
+        .in_(articles::columns::id, core::iter::empty::<&i64>())
         .limit(0)
         .fetch()
         .await

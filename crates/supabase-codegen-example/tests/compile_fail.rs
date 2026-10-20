@@ -8,7 +8,7 @@ fn typed_contract_rejects_invalid_consumers() {
         std::env::temp_dir().join(format!("supabase-typed-consumers-{}", std::process::id()));
     fs::create_dir_all(&directory).unwrap();
     let client = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../supabase-client");
-    let manifest = format!(
+    let document = format!(
         r#"[package]
 name = "supabase-typed-consumers"
 version = "0.0.0"
@@ -24,7 +24,7 @@ chrono = {{ version = "0.4", default-features = false, features = ["serde", "clo
 typed-builder = "0.21"
 "#
     );
-    fs::write(directory.join("Cargo.toml"), manifest).unwrap();
+    fs::write(directory.join("Cargo.toml"), document).unwrap();
     fs::copy(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../Cargo.lock"),
         directory.join("Cargo.lock"),
@@ -153,33 +153,33 @@ typed-builder = "0.21"
             false,
         ),
         (
-            "shared_artifact",
-            "rp_supabase_client::projection! { struct Artifact for [database::public::tables::skills, database::public::tables::adapters] { id, name, owner_id } } fn consumer(c: Postgrest) { let _ = rel::skills::query(c.clone()).select(rp_supabase_client::schema::named::<_, Artifact>()); let _ = rel::adapters::query(c).select(rp_supabase_client::schema::named::<_, Artifact>()); }",
+            "shared_content",
+            "rp_supabase_client::projection! { struct Content for [database::public::tables::articles, database::public::tables::videos] { id, name, owner_id } } fn consumer(c: Postgrest) { let _ = rel::articles::query(c.clone()).select(rp_supabase_client::schema::named::<_, Content>()); let _ = rel::videos::query(c).select(rp_supabase_client::schema::named::<_, Content>()); }",
             true,
         ),
         (
             "shared_unselected_columns_need_not_match",
-            "rp_supabase_client::projection! { struct SharedId for [database::public::tables::skills, database::public::tables::artifact_wrong_type, database::public::tables::artifact_missing] { id } } fn consumer(c: Postgrest) { let _ = rel::skills::query(c.clone()).select(rp_supabase_client::schema::named::<_, SharedId>()); let _ = rel::artifact_wrong_type::query(c.clone()).select(rp_supabase_client::schema::named::<_, SharedId>()); let _ = rel::artifact_missing::query(c).select(rp_supabase_client::schema::named::<_, SharedId>()); }",
+            "rp_supabase_client::projection! { struct SharedId for [database::public::tables::articles, database::public::tables::content_wrong_type, database::public::tables::content_missing] { id } } fn consumer(c: Postgrest) { let _ = rel::articles::query(c.clone()).select(rp_supabase_client::schema::named::<_, SharedId>()); let _ = rel::content_wrong_type::query(c.clone()).select(rp_supabase_client::schema::named::<_, SharedId>()); let _ = rel::content_missing::query(c).select(rp_supabase_client::schema::named::<_, SharedId>()); }",
             true,
         ),
         (
             "shared_type_mismatch",
-            "rp_supabase_client::projection! { struct Invalid for [database::public::tables::skills, database::public::tables::artifact_wrong_type] { id, owner_id } }",
+            "rp_supabase_client::projection! { struct Invalid for [database::public::tables::articles, database::public::tables::content_wrong_type] { id, owner_id } }",
             false,
         ),
         (
             "shared_key_mismatch",
-            "rp_supabase_client::projection! { struct Invalid for [database::public::tables::skills, database::public::tables::artifact_wrong_key] { id, owner_id } }",
+            "rp_supabase_client::projection! { struct Invalid for [database::public::tables::articles, database::public::tables::content_wrong_key] { id, owner_id } }",
             false,
         ),
         (
             "shared_missing_field",
-            "rp_supabase_client::projection! { struct Invalid for [database::public::tables::skills, database::public::tables::artifact_missing] { id, owner_id } }",
+            "rp_supabase_client::projection! { struct Invalid for [database::public::tables::articles, database::public::tables::content_missing] { id, owner_id } }",
             false,
         ),
         (
             "shared_missing_binding",
-            "rp_supabase_client::projection! { struct Artifact for [database::public::tables::skills, database::public::tables::adapters] { id, name, owner_id } } fn consumer(c: Postgrest) { let _ = rel::customers::query(c).select(rp_supabase_client::schema::named::<_, Artifact>()); }",
+            "rp_supabase_client::projection! { struct Content for [database::public::tables::articles, database::public::tables::videos] { id, name, owner_id } } fn consumer(c: Postgrest) { let _ = rel::customers::query(c).select(rp_supabase_client::schema::named::<_, Content>()); }",
             false,
         ),
         (
@@ -189,47 +189,47 @@ typed-builder = "0.21"
         ),
         (
             "valid_typed_read_operations",
-            "fn consumer(c: Postgrest) { use rp_supabase_client::schema::Order; let _ = rel::skills::query(c).order(rel::skills::columns::id, Order::Desc).in_(rel::skills::columns::id, [&1i64, &2]).json_text_eq(rel::skills::columns::manifest, &[\"fingerprint\"], \"value\").unwrap().limit(2).range(0, 1); }",
+            "fn consumer(c: Postgrest) { use rp_supabase_client::schema::Order; let _ = rel::articles::query(c).order(rel::articles::columns::id, Order::Desc).in_(rel::articles::columns::id, [&1i64, &2]).json_text_eq(rel::articles::columns::document, &[\"slug\"], \"value\").unwrap().limit(2).range(0, 1); }",
             true,
         ),
         (
             "paged_delete",
-            "fn consumer(c: Postgrest) { let _ = rel::skills::query(c).limit(1).delete(); }",
+            "fn consumer(c: Postgrest) { let _ = rel::articles::query(c).limit(1).delete(); }",
             false,
         ),
         (
             "ranged_update",
-            "fn consumer(c: Postgrest, p: rel::skills::Update) { let _ = rel::skills::query(c).range(0, 1).update(&p); }",
+            "fn consumer(c: Postgrest, p: rel::articles::Update) { let _ = rel::articles::query(c).range(0, 1).update(&p); }",
             false,
         ),
         (
             "paged_insert",
-            "fn consumer(c: Postgrest, p: rel::skills::Insert) { let _ = rel::skills::query(c).limit(1).insert(&p); }",
+            "fn consumer(c: Postgrest, p: rel::articles::Insert) { let _ = rel::articles::query(c).limit(1).insert(&p); }",
             false,
         ),
         (
             "wrong_order_owner",
-            "fn consumer(c: Postgrest) { let _ = rel::skills::query(c).order(rel::adapters::columns::id, rp_supabase_client::schema::Order::Asc); }",
+            "fn consumer(c: Postgrest) { let _ = rel::articles::query(c).order(rel::videos::columns::id, rp_supabase_client::schema::Order::Asc); }",
             false,
         ),
         (
             "wrong_in_owner",
-            "fn consumer(c: Postgrest) { let _ = rel::skills::query(c).in_(rel::adapters::columns::id, [&1i64]); }",
+            "fn consumer(c: Postgrest) { let _ = rel::articles::query(c).in_(rel::videos::columns::id, [&1i64]); }",
             false,
         ),
         (
             "wrong_in_value",
-            "fn consumer(c: Postgrest) { let _ = rel::skills::query(c).in_(rel::skills::columns::id, [\"one\"]); }",
+            "fn consumer(c: Postgrest) { let _ = rel::articles::query(c).in_(rel::articles::columns::id, [\"one\"]); }",
             false,
         ),
         (
             "wrong_json_owner",
-            "fn consumer(c: Postgrest) { let _ = rel::skills::query(c).json_text_eq(rel::adapters::columns::manifest, &[\"fingerprint\"], \"value\"); }",
+            "fn consumer(c: Postgrest) { let _ = rel::articles::query(c).json_text_eq(rel::videos::columns::document, &[\"slug\"], \"value\"); }",
             false,
         ),
         (
             "non_json_path",
-            "fn consumer(c: Postgrest) { let _ = rel::skills::query(c).json_text_eq(rel::skills::columns::name, &[\"fingerprint\"], \"value\"); }",
+            "fn consumer(c: Postgrest) { let _ = rel::articles::query(c).json_text_eq(rel::articles::columns::name, &[\"slug\"], \"value\"); }",
             false,
         ),
         (
@@ -429,22 +429,47 @@ typed-builder = "0.21"
         ),
         (
             "shared_filter_mismatched_types",
-            "rp_supabase_client::projection! { struct Artifact for [rel::skills, rel::adapters] { name } filters { artifact_id: [id, name] } }",
+            "rp_supabase_client::projection! { struct Content for [rel::articles, rel::videos] { name } filters { content_id: [id, name] } }",
             false,
         ),
         (
             "shared_filter_wrong_query_relation",
-            "rp_supabase_client::projection! { struct Artifact for [rel::skills, rel::adapters] { name } filters { artifact_id: [id, owner_id] } } fn reject(client: Postgrest) { rel::adapters::query(client).eq(Artifact::artifact_id::<rel::skills::Row>(), &7); }",
+            "rp_supabase_client::projection! { struct Content for [rel::articles, rel::videos] { name } filters { content_id: [id, owner_id] } } fn reject(client: Postgrest) { rel::videos::query(client).eq(Content::content_id::<rel::articles::Row>(), &7); }",
             false,
         ),
         (
             "shared_filter_undeclared_relation",
-            "rp_supabase_client::projection! { struct Artifact for [rel::skills, rel::adapters] { name } filters { artifact_id: [id, owner_id] } } fn reject() { let _ = Artifact::artifact_id::<rel::artifact_links::Row>(); }",
+            "rp_supabase_client::projection! { struct Content for [rel::articles, rel::videos] { name } filters { content_id: [id, owner_id] } } fn reject() { let _ = Content::content_id::<rel::content_links::Row>(); }",
             false,
         ),
         (
             "shared_filter_missing_mapping",
-            "rp_supabase_client::projection! { struct Artifact for [rel::skills, rel::adapters] { name } filters { artifact_id: [id] } }",
+            "rp_supabase_client::projection! { struct Content for [rel::articles, rel::videos] { name } filters { content_id: [id] } }",
+            false,
+        ),
+        (
+            "computed_field_filters_and_selects",
+            "fn consumer(c: Postgrest, v: serde_json::Value) { let _ = tables::json_probe::query(c.clone()).is_null(tables::json_probe::columns::summary).is_null(tables::json_probe::columns::outcome); let _ = rp_supabase_client::select!(tables::column_view::Row => { value, label }).query(c); let _ = tables::json_probe::Insert { document: rp_supabase_client::schema::Field::Omit, documents: rp_supabase_client::schema::Array::Elements(vec![]), extra: rp_supabase_client::schema::NonNullJson::from(serde_json::Map::new()), notes: rp_supabase_client::schema::Field::Value(Some(v)) }; }",
+            true,
+        ),
+        (
+            "computed_field_not_in_row",
+            "fn consumer(row: tables::json_probe::Row) { let _ = row.summary; }",
+            false,
+        ),
+        (
+            "computed_field_not_in_insert",
+            "fn consumer(v: rp_supabase_client::schema::NonNullJson) { let _ = tables::json_probe::Insert { document: rp_supabase_client::schema::Field::Omit, documents: rp_supabase_client::schema::Array::Elements(vec![]), extra: v, notes: rp_supabase_client::schema::Field::Omit, summary: None }; }",
+            false,
+        ),
+        (
+            "computed_field_not_in_update",
+            "fn consumer() { let _ = tables::json_probe::Update { summary: rp_supabase_client::schema::Field::Omit, ..Default::default() }; }",
+            false,
+        ),
+        (
+            "non_null_json_rejects_raw_value",
+            "fn consumer(v: serde_json::Value) { let _ = tables::json_probe::Insert { document: rp_supabase_client::schema::Field::Omit, documents: rp_supabase_client::schema::Array::Elements(vec![]), extra: v, notes: rp_supabase_client::schema::Field::Omit }; }",
             false,
         ),
     ];

@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Breaking
+
+- Snapshot format is version 4. Regenerate version 3 snapshots. Public `model::Table` metadata now requires `computed_fields`.
+- Insert and update fields for `NOT NULL` JSON/JSONB columns, and strict non-null JSON RPC arguments, use `schema::NonNullJson` instead of `serde_json::Value`. Writing JSON null to those columns no longer compiles. PostgREST turned it into SQL `NULL`, which the column rejected at runtime.
+
+### Added
+
+- Generate PostgREST computed fields. A same-schema function whose only input is a table or view row type gets a nullable column marker. It works with `select!`, `projection!`, filters, ordering, and embedded filters. `Row`, `Insert`, and `Update` do not include it. `snapshot check` reports computed-field drift by name.
+
 ## [0.12.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-codegen-v0.11.0...rp-supabase-codegen-v0.12.0) - 2026-10-09
 
 ### Other

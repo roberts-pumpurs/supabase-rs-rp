@@ -1,10 +1,10 @@
 {
-  "version": 3,
+  "version": 4,
   "schemas": [
     {
       "name": "public",
       "enums": [
-        {"name": "check_probe_owner_type", "variants": ["user", "organization"]},
+        {"name": "check_probe_author_kind", "variants": ["user", "organization"]},
         {
           "name": "record",
           "variants": [
@@ -47,17 +47,22 @@
       ],
       "tables": [
         {"name": "json_probe", "kind": "table", "columns": [
-          {"name": "manifest", "ty": {"kind": "builtin", "value": "jsonb"}, "nullable": true, "has_default": false, "generated": false, "identity": "none"},
-          {"name": "manifests", "ty": {"kind": "array", "value": {"kind": "builtin", "value": "jsonb"}}, "nullable": false, "has_default": false, "generated": false, "identity": "none"}
-        ], "primary_key": null, "unique_keys": [], "foreign_keys": [], "is_partition": false},
+          {"name": "document", "ty": {"kind": "builtin", "value": "jsonb"}, "nullable": true, "has_default": false, "generated": false, "identity": "none"},
+          {"name": "documents", "ty": {"kind": "array", "value": {"kind": "builtin", "value": "jsonb"}}, "nullable": false, "has_default": false, "generated": false, "identity": "none"},
+          {"name": "extra", "ty": {"kind": "builtin", "value": "jsonb"}, "nullable": false, "has_default": false, "generated": false, "identity": "none"},
+          {"name": "notes", "ty": {"kind": "builtin", "value": "jsonb"}, "nullable": true, "has_default": false, "generated": false, "identity": "none"}
+        ], "primary_key": null, "unique_keys": [], "foreign_keys": [], "is_partition": false, "computed_fields": [
+          {"name": "summary", "ty": {"kind": "builtin", "value": "text"}},
+          {"name": "outcome", "ty": {"kind": "builtin", "value": "jsonb"}}
+        ]},
         {
           "name": "check_probe",
           "kind": "table",
           "columns": [
-            {"name": "owner_type", "ty": {"kind": "named", "value": {"schema": "public", "name": "check_probe_owner_type"}}, "nullable": false, "has_default": false, "generated": false, "identity": "none"},
-            {"name": "external_owner", "ty": {"kind": "builtin", "value": "text"}, "nullable": true, "has_default": false, "generated": false, "identity": "none"}
+            {"name": "author_kind", "ty": {"kind": "named", "value": {"schema": "public", "name": "check_probe_author_kind"}}, "nullable": false, "has_default": false, "generated": false, "identity": "none"},
+            {"name": "external_author", "ty": {"kind": "builtin", "value": "text"}, "nullable": true, "has_default": false, "generated": false, "identity": "none"}
           ],
-          "primary_key": null, "unique_keys": [], "foreign_keys": [], "is_partition": false
+          "primary_key": null, "unique_keys": [], "foreign_keys": [], "is_partition": false, "computed_fields": []
         },
         {
           "name": "column_defaults",
@@ -129,7 +134,8 @@
           "primary_key": null,
           "unique_keys": [],
           "foreign_keys": [],
-          "is_partition": false
+          "is_partition": false,
+          "computed_fields": []
         },
         {
           "name": "column_view",
@@ -150,7 +156,16 @@
           "primary_key": null,
           "unique_keys": [],
           "foreign_keys": [],
-          "is_partition": false
+          "is_partition": false,
+          "computed_fields": [
+            {
+              "name": "label",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              }
+            }
+          ]
         },
         {
           "name": "a#b",
@@ -193,7 +208,8 @@
           "primary_key": null,
           "unique_keys": [],
           "foreign_keys": [],
-          "is_partition": false
+          "is_partition": false,
+          "computed_fields": []
         },
         {
           "name": "typed.probe",
@@ -225,7 +241,8 @@
           "primary_key": null,
           "unique_keys": [],
           "foreign_keys": [],
-          "is_partition": false
+          "is_partition": false,
+          "computed_fields": []
         },
         {
           "name": "bool",
@@ -246,7 +263,8 @@
           "primary_key": null,
           "unique_keys": [],
           "foreign_keys": [],
-          "is_partition": false
+          "is_partition": false,
+          "computed_fields": []
         },
         {
           "name": "countries",
@@ -280,7 +298,8 @@
           ],
           "unique_keys": [],
           "foreign_keys": [],
-          "is_partition": false
+          "is_partition": false,
+          "computed_fields": []
         },
         {
           "name": "addresses",
@@ -339,7 +358,8 @@
               ]
             }
           ],
-          "is_partition": false
+          "is_partition": false,
+          "computed_fields": []
         },
         {
           "name": "customers",
@@ -373,7 +393,8 @@
           ],
           "unique_keys": [],
           "foreign_keys": [],
-          "is_partition": false
+          "is_partition": false,
+          "computed_fields": []
         },
         {
           "name": "orders",
@@ -480,7 +501,8 @@
               ]
             }
           ],
-          "is_partition": false
+          "is_partition": false,
+          "computed_fields": []
         },
         {
           "name": "order_details",
@@ -528,7 +550,8 @@
               ]
             }
           ],
-          "is_partition": false
+          "is_partition": false,
+          "computed_fields": []
         },
         {
           "name": "customer_preferences",
@@ -591,7 +614,8 @@
               ]
             }
           ],
-          "is_partition": false
+          "is_partition": false,
+          "computed_fields": []
         },
         {
           "name": "composite_parents",
@@ -637,7 +661,8 @@
           ],
           "unique_keys": [],
           "foreign_keys": [],
-          "is_partition": false
+          "is_partition": false,
+          "computed_fields": []
         },
         {
           "name": "composite_children",
@@ -709,16 +734,17 @@
               ]
             }
           ],
-          "is_partition": false
+          "is_partition": false,
+          "computed_fields": []
         }
       ],
       "functions": [
-        {"name": "invite_outcome", "arguments": [{"name": "audience", "ty": {"kind": "builtin", "value": "jsonb"}, "has_default": false, "nullable": false}], "returns": {"kind": "type", "value": {"kind": "builtin", "value": "jsonb"}}, "returns_set": false},
-        {"name": "invite_records", "arguments": [], "returns": {"kind": "record", "value": [{"name": "data", "ty": {"kind": "builtin", "value": "jsonb"}, "nullable": false, "has_default": false, "generated": false, "identity": "none"}]}, "returns_set": true},
+        {"name": "fetch_outcome", "arguments": [{"name": "audience", "ty": {"kind": "builtin", "value": "jsonb"}, "has_default": false, "nullable": false}], "returns": {"kind": "type", "value": {"kind": "builtin", "value": "jsonb"}}, "returns_set": false},
+        {"name": "outcome_records", "arguments": [], "returns": {"kind": "record", "value": [{"name": "data", "ty": {"kind": "builtin", "value": "jsonb"}, "nullable": false, "has_default": false, "generated": false, "identity": "none"}]}, "returns_set": true},
         {"name": "strict_probe", "arguments": [
           {"name": "label", "ty": {"kind": "builtin", "value": "text"}, "has_default": false, "nullable": false},
           {"name": "version", "ty": {"kind": "builtin", "value": "int4"}, "has_default": false, "nullable": true},
-          {"name": "manifest", "ty": {"kind": "builtin", "value": "jsonb"}, "has_default": true, "nullable": false},
+          {"name": "document", "ty": {"kind": "builtin", "value": "jsonb"}, "has_default": true, "nullable": false},
           {"name": "payload", "ty": {"kind": "builtin", "value": "jsonb"}, "has_default": false, "nullable": false}
         ], "returns": {"kind": "type", "value": {"kind": "builtin", "value": "void"}}, "returns_set": false},
         {
@@ -927,7 +953,8 @@
         "primary_key": null,
         "unique_keys": [],
         "foreign_keys": [],
-        "is_partition": false
+        "is_partition": false,
+        "computed_fields": []
       }],
       "functions": []
     }

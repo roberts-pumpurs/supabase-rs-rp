@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "schemas": [
     {
       "name": "public",
@@ -12,8 +12,1348 @@
           ]
         }
       ],
-      "composites": [],
+      "composites": [
+        {
+          "name": "addresses",
+          "fields": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "label",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "country_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ]
+        },
+        {
+          "name": "articles",
+          "fields": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "name",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "owner_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "document",
+              "ty": {
+                "kind": "builtin",
+                "value": "jsonb"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ]
+        },
+        {
+          "name": "composite_children",
+          "fields": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "parent_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "tenant_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "label",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ]
+        },
+        {
+          "name": "composite_parents",
+          "fields": [
+            {
+              "name": "tenant_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "label",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ]
+        },
+        {
+          "name": "content_links",
+          "fields": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "article_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "video_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ]
+        },
+        {
+          "name": "content_missing",
+          "fields": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "name",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "document",
+              "ty": {
+                "kind": "builtin",
+                "value": "jsonb"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ]
+        },
+        {
+          "name": "content_wrong_key",
+          "fields": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "name",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "owner.id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "document",
+              "ty": {
+                "kind": "builtin",
+                "value": "jsonb"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ]
+        },
+        {
+          "name": "content_wrong_type",
+          "fields": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "name",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "owner_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "document",
+              "ty": {
+                "kind": "builtin",
+                "value": "jsonb"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ]
+        },
+        {
+          "name": "countries",
+          "fields": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "name",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ]
+        },
+        {
+          "name": "customer_preferences",
+          "fields": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "customer_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "label",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ]
+        },
+        {
+          "name": "customers",
+          "fields": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "name",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ]
+        },
+        {
+          "name": "message_summaries",
+          "fields": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "body",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ]
+        },
+        {
+          "name": "messages",
+          "fields": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "body",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "note",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "created_at",
+              "ty": {
+                "kind": "builtin",
+                "value": "timestamptz"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "mood",
+              "ty": {
+                "kind": "named",
+                "value": {
+                  "schema": "public",
+                  "name": "mood"
+                }
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "metadata",
+              "ty": {
+                "kind": "builtin",
+                "value": "jsonb"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "amount",
+              "ty": {
+                "kind": "builtin",
+                "value": "numeric"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "tags",
+              "ty": {
+                "kind": "array",
+                "value": {
+                  "kind": "builtin",
+                  "value": "text"
+                }
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ]
+        },
+        {
+          "name": "order_details",
+          "fields": [
+            {
+              "name": "order_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "note",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ]
+        },
+        {
+          "name": "orders",
+          "fields": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "customer_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "billing_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "shipping_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "label",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ]
+        },
+        {
+          "name": "videos",
+          "fields": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "name",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "owner_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "document",
+              "ty": {
+                "kind": "builtin",
+                "value": "jsonb"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ]
+        }
+      ],
       "tables": [
+        {
+          "name": "addresses",
+          "kind": "table",
+          "columns": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "label",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "country_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": true,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ],
+          "primary_key": [
+            "id"
+          ],
+          "unique_keys": [],
+          "foreign_keys": [
+            {
+              "name": "address_country",
+              "columns": [
+                "country_id"
+              ],
+              "referenced_relation": {
+                "schema": "public",
+                "name": "countries"
+              },
+              "referenced_columns": [
+                "id"
+              ]
+            }
+          ],
+          "is_partition": false,
+          "computed_fields": []
+        },
+        {
+          "name": "articles",
+          "kind": "table",
+          "columns": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "name",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "owner_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "document",
+              "ty": {
+                "kind": "builtin",
+                "value": "jsonb"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ],
+          "primary_key": [
+            "id"
+          ],
+          "unique_keys": [],
+          "foreign_keys": [],
+          "is_partition": false,
+          "computed_fields": []
+        },
+        {
+          "name": "composite_children",
+          "kind": "table",
+          "columns": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "parent_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "tenant_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "label",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ],
+          "primary_key": [
+            "id"
+          ],
+          "unique_keys": [],
+          "foreign_keys": [
+            {
+              "name": "composite_parent",
+              "columns": [
+                "parent_id",
+                "tenant_id"
+              ],
+              "referenced_relation": {
+                "schema": "public",
+                "name": "composite_parents"
+              },
+              "referenced_columns": [
+                "id",
+                "tenant_id"
+              ]
+            }
+          ],
+          "is_partition": false,
+          "computed_fields": []
+        },
+        {
+          "name": "composite_parents",
+          "kind": "table",
+          "columns": [
+            {
+              "name": "tenant_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "label",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ],
+          "primary_key": [
+            "tenant_id",
+            "id"
+          ],
+          "unique_keys": [],
+          "foreign_keys": [],
+          "is_partition": false,
+          "computed_fields": []
+        },
+        {
+          "name": "content_links",
+          "kind": "table",
+          "columns": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "article_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "video_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ],
+          "primary_key": [
+            "id"
+          ],
+          "unique_keys": [],
+          "foreign_keys": [
+            {
+              "name": "links_article",
+              "columns": [
+                "article_id"
+              ],
+              "referenced_relation": {
+                "schema": "public",
+                "name": "articles"
+              },
+              "referenced_columns": [
+                "id"
+              ]
+            },
+            {
+              "name": "links_video",
+              "columns": [
+                "video_id"
+              ],
+              "referenced_relation": {
+                "schema": "public",
+                "name": "videos"
+              },
+              "referenced_columns": [
+                "id"
+              ]
+            }
+          ],
+          "is_partition": false,
+          "computed_fields": []
+        },
+        {
+          "name": "content_missing",
+          "kind": "table",
+          "columns": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "name",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "document",
+              "ty": {
+                "kind": "builtin",
+                "value": "jsonb"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ],
+          "primary_key": [
+            "id"
+          ],
+          "unique_keys": [],
+          "foreign_keys": [],
+          "is_partition": false,
+          "computed_fields": []
+        },
+        {
+          "name": "content_wrong_key",
+          "kind": "table",
+          "columns": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "name",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "owner.id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "document",
+              "ty": {
+                "kind": "builtin",
+                "value": "jsonb"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ],
+          "primary_key": [
+            "id"
+          ],
+          "unique_keys": [],
+          "foreign_keys": [],
+          "is_partition": false,
+          "computed_fields": []
+        },
+        {
+          "name": "content_wrong_type",
+          "kind": "table",
+          "columns": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "name",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "owner_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "document",
+              "ty": {
+                "kind": "builtin",
+                "value": "jsonb"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ],
+          "primary_key": [
+            "id"
+          ],
+          "unique_keys": [],
+          "foreign_keys": [],
+          "is_partition": false,
+          "computed_fields": []
+        },
+        {
+          "name": "countries",
+          "kind": "table",
+          "columns": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "name",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ],
+          "primary_key": [
+            "id"
+          ],
+          "unique_keys": [],
+          "foreign_keys": [],
+          "is_partition": false,
+          "computed_fields": []
+        },
+        {
+          "name": "customer_preferences",
+          "kind": "table",
+          "columns": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "customer_id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "label",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ],
+          "primary_key": [
+            "id"
+          ],
+          "unique_keys": [
+            [
+              "customer_id"
+            ]
+          ],
+          "foreign_keys": [
+            {
+              "name": "preferences_customer",
+              "columns": [
+                "customer_id"
+              ],
+              "referenced_relation": {
+                "schema": "public",
+                "name": "customers"
+              },
+              "referenced_columns": [
+                "id"
+              ]
+            }
+          ],
+          "is_partition": false,
+          "computed_fields": []
+        },
+        {
+          "name": "customers",
+          "kind": "table",
+          "columns": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "name",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ],
+          "primary_key": [
+            "id"
+          ],
+          "unique_keys": [],
+          "foreign_keys": [],
+          "is_partition": false,
+          "computed_fields": []
+        },
+        {
+          "name": "message_summaries",
+          "kind": "view",
+          "columns": [
+            {
+              "name": "id",
+              "ty": {
+                "kind": "builtin",
+                "value": "int8"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            },
+            {
+              "name": "body",
+              "ty": {
+                "kind": "builtin",
+                "value": "text"
+              },
+              "nullable": false,
+              "has_default": false,
+              "generated": false,
+              "identity": "none"
+            }
+          ],
+          "primary_key": null,
+          "unique_keys": [],
+          "foreign_keys": [],
+          "is_partition": false,
+          "computed_fields": []
+        },
         {
           "name": "messages",
           "kind": "table",
@@ -118,46 +1458,30 @@
           ],
           "unique_keys": [],
           "foreign_keys": [],
-          "is_partition": false
-        },
-        {
-          "name": "message_summaries",
-          "kind": "view",
-          "columns": [
+          "is_partition": false,
+          "computed_fields": [
             {
-              "name": "id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": true,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "body",
+              "name": "excerpt",
               "ty": {
                 "kind": "builtin",
                 "value": "text"
-              },
-              "nullable": true,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
+              }
+            },
+            {
+              "name": "message_meta",
+              "ty": {
+                "kind": "builtin",
+                "value": "jsonb"
+              }
             }
-          ],
-          "primary_key": null,
-          "unique_keys": [],
-          "foreign_keys": [],
-          "is_partition": false
+          ]
         },
         {
-          "name": "countries",
+          "name": "order_details",
           "kind": "table",
           "columns": [
             {
-              "name": "id",
+              "name": "order_id",
               "ty": {
                 "kind": "builtin",
                 "value": "int8"
@@ -168,7 +1492,7 @@
               "identity": "none"
             },
             {
-              "name": "name",
+              "name": "note",
               "ty": {
                 "kind": "builtin",
                 "value": "text"
@@ -180,104 +1504,26 @@
             }
           ],
           "primary_key": [
-            "id"
-          ],
-          "unique_keys": [],
-          "foreign_keys": [],
-          "is_partition": false
-        },
-        {
-          "name": "addresses",
-          "kind": "table",
-          "columns": [
-            {
-              "name": "id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "label",
-              "ty": {
-                "kind": "builtin",
-                "value": "text"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "country_id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": true,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            }
-          ],
-          "primary_key": [
-            "id"
+            "order_id"
           ],
           "unique_keys": [],
           "foreign_keys": [
             {
-              "name": "address_country",
+              "name": "details_order",
               "columns": [
-                "country_id"
+                "order_id"
               ],
               "referenced_relation": {
                 "schema": "public",
-                "name": "countries"
+                "name": "orders"
               },
               "referenced_columns": [
                 "id"
               ]
             }
           ],
-          "is_partition": false
-        },
-        {
-          "name": "customers",
-          "kind": "table",
-          "columns": [
-            {
-              "name": "id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "name",
-              "ty": {
-                "kind": "builtin",
-                "value": "text"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            }
-          ],
-          "primary_key": [
-            "id"
-          ],
-          "unique_keys": [],
-          "foreign_keys": [],
-          "is_partition": false
+          "is_partition": false,
+          "computed_fields": []
         },
         {
           "name": "orders",
@@ -345,19 +1591,6 @@
           "unique_keys": [],
           "foreign_keys": [
             {
-              "name": "orders_customer",
-              "columns": [
-                "customer_id"
-              ],
-              "referenced_relation": {
-                "schema": "public",
-                "name": "customers"
-              },
-              "referenced_columns": [
-                "id"
-              ]
-            },
-            {
               "name": "orders_billing",
               "columns": [
                 "billing_id"
@@ -365,6 +1598,19 @@
               "referenced_relation": {
                 "schema": "public",
                 "name": "addresses"
+              },
+              "referenced_columns": [
+                "id"
+              ]
+            },
+            {
+              "name": "orders_customer",
+              "columns": [
+                "customer_id"
+              ],
+              "referenced_relation": {
+                "schema": "public",
+                "name": "customers"
               },
               "referenced_columns": [
                 "id"
@@ -384,238 +1630,11 @@
               ]
             }
           ],
-          "is_partition": false
+          "is_partition": false,
+          "computed_fields": []
         },
         {
-          "name": "order_details",
-          "kind": "table",
-          "columns": [
-            {
-              "name": "order_id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "note",
-              "ty": {
-                "kind": "builtin",
-                "value": "text"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            }
-          ],
-          "primary_key": [
-            "order_id"
-          ],
-          "unique_keys": [],
-          "foreign_keys": [
-            {
-              "name": "details_order",
-              "columns": [
-                "order_id"
-              ],
-              "referenced_relation": {
-                "schema": "public",
-                "name": "orders"
-              },
-              "referenced_columns": [
-                "id"
-              ]
-            }
-          ],
-          "is_partition": false
-        },
-        {
-          "name": "customer_preferences",
-          "kind": "table",
-          "columns": [
-            {
-              "name": "id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "customer_id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "label",
-              "ty": {
-                "kind": "builtin",
-                "value": "text"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            }
-          ],
-          "primary_key": [
-            "id"
-          ],
-          "unique_keys": [
-            [
-              "customer_id"
-            ]
-          ],
-          "foreign_keys": [
-            {
-              "name": "preferences_customer",
-              "columns": [
-                "customer_id"
-              ],
-              "referenced_relation": {
-                "schema": "public",
-                "name": "customers"
-              },
-              "referenced_columns": [
-                "id"
-              ]
-            }
-          ],
-          "is_partition": false
-        },
-        {
-          "name": "composite_parents",
-          "kind": "table",
-          "columns": [
-            {
-              "name": "tenant_id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "label",
-              "ty": {
-                "kind": "builtin",
-                "value": "text"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            }
-          ],
-          "primary_key": [
-            "tenant_id",
-            "id"
-          ],
-          "unique_keys": [],
-          "foreign_keys": [],
-          "is_partition": false
-        },
-        {
-          "name": "composite_children",
-          "kind": "table",
-          "columns": [
-            {
-              "name": "id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "parent_id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "tenant_id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "label",
-              "ty": {
-                "kind": "builtin",
-                "value": "text"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            }
-          ],
-          "primary_key": [
-            "id"
-          ],
-          "unique_keys": [],
-          "foreign_keys": [
-            {
-              "name": "composite_parent",
-              "columns": [
-                "parent_id",
-                "tenant_id"
-              ],
-              "referenced_relation": {
-                "schema": "public",
-                "name": "composite_parents"
-              },
-              "referenced_columns": [
-                "id",
-                "tenant_id"
-              ]
-            }
-          ],
-          "is_partition": false
-        },
-        {
+          "name": "videos",
           "kind": "table",
           "columns": [
             {
@@ -652,63 +1671,7 @@
               "identity": "none"
             },
             {
-              "name": "manifest",
-              "ty": {
-                "kind": "builtin",
-                "value": "pg_catalog.jsonb"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            }
-          ],
-          "primary_key": [
-            "id"
-          ],
-          "unique_keys": [],
-          "foreign_keys": [],
-          "is_partition": false,
-          "name": "skills"
-        },
-        {
-          "kind": "table",
-          "columns": [
-            {
-              "name": "id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "name",
-              "ty": {
-                "kind": "builtin",
-                "value": "text"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "owner_id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "manifest",
+              "name": "document",
               "ty": {
                 "kind": "builtin",
                 "value": "jsonb"
@@ -725,236 +1688,7 @@
           "unique_keys": [],
           "foreign_keys": [],
           "is_partition": false,
-          "name": "adapters"
-        },
-        {
-          "kind": "table",
-          "columns": [
-            {
-              "name": "id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "name",
-              "ty": {
-                "kind": "builtin",
-                "value": "text"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "owner_id",
-              "ty": {
-                "kind": "builtin",
-                "value": "text"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "manifest",
-              "ty": {
-                "kind": "builtin",
-                "value": "jsonb"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            }
-          ],
-          "primary_key": [
-            "id"
-          ],
-          "unique_keys": [],
-          "foreign_keys": [],
-          "is_partition": false,
-          "name": "artifact_wrong_type"
-        },
-        {
-          "kind": "table",
-          "columns": [
-            {
-              "name": "id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "name",
-              "ty": {
-                "kind": "builtin",
-                "value": "text"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "owner.id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "manifest",
-              "ty": {
-                "kind": "builtin",
-                "value": "jsonb"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            }
-          ],
-          "primary_key": [
-            "id"
-          ],
-          "unique_keys": [],
-          "foreign_keys": [],
-          "is_partition": false,
-          "name": "artifact_wrong_key"
-        },
-        {
-          "kind": "table",
-          "columns": [
-            {
-              "name": "id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "name",
-              "ty": {
-                "kind": "builtin",
-                "value": "text"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "manifest",
-              "ty": {
-                "kind": "builtin",
-                "value": "jsonb"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            }
-          ],
-          "primary_key": [
-            "id"
-          ],
-          "unique_keys": [],
-          "foreign_keys": [],
-          "is_partition": false,
-          "name": "artifact_missing"
-        },
-        {
-          "kind": "table",
-          "columns": [
-            {
-              "name": "id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "skill_id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            },
-            {
-              "name": "adapter_id",
-              "ty": {
-                "kind": "builtin",
-                "value": "int8"
-              },
-              "nullable": false,
-              "has_default": false,
-              "generated": false,
-              "identity": "none"
-            }
-          ],
-          "primary_key": [
-            "id"
-          ],
-          "unique_keys": [],
-          "foreign_keys": [
-            {
-              "name": "links_skill",
-              "columns": [
-                "skill_id"
-              ],
-              "referenced_relation": {
-                "schema": "public",
-                "name": "skills"
-              },
-              "referenced_columns": [
-                "id"
-              ]
-            },
-            {
-              "name": "links_adapter",
-              "columns": [
-                "adapter_id"
-              ],
-              "referenced_relation": {
-                "schema": "public",
-                "name": "adapters"
-              },
-              "referenced_columns": [
-                "id"
-              ]
-            }
-          ],
-          "is_partition": false,
-          "name": "artifact_links"
+          "computed_fields": []
         }
       ],
       "functions": [

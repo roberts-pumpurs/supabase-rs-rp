@@ -2,7 +2,7 @@
 //!
 //! Runtime table names need no generated relation marker:
 //! ```rust,ignore
-//! let table = "skills";
+//! let table = "articles";
 //! let mut pairs = vec![
 //!     params::select("*"),
 //!     params::order_by("created_at", params::Order::Desc),

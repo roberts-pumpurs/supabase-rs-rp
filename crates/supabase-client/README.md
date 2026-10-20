@@ -65,12 +65,12 @@ A projection defines both the selection and response field types. `Projection<R>
 ```rust,no_run
 # use rp_supabase_codegen_example::database;
 # async fn run(client: rp_supabase_client::Postgrest) -> Result<(), Box<dyn std::error::Error>> {
-use database::public::tables::{adapters, skills};
+use database::public::tables::{videos, articles};
 use rp_supabase_client::projection;
 use rp_supabase_client::schema::{Count, Nulls, Order, named};
 
 projection! {
-    struct Artifact for [database::public::tables::skills, database::public::tables::adapters] {
+    struct Content for [database::public::tables::articles, database::public::tables::videos] {
         id,
         name,
         owner_id,
@@ -78,17 +78,17 @@ projection! {
 }
 
 let names = ["search", "storage"];
-let page = skills::query(client.clone())
-    .select(named::<_, Artifact>())
-    .in_(skills::columns::name, names)
-    .order_with_nulls(skills::columns::name, Order::Asc, Nulls::Last)
-    .order(skills::columns::id, Order::Desc)
-    .json_text_eq(skills::columns::manifest, &["fingerprint"], "abc123")?
+let page = articles::query(client.clone())
+    .select(named::<_, Content>())
+    .in_(articles::columns::name, names)
+    .order_with_nulls(articles::columns::name, Order::Asc, Nulls::Last)
+    .order(articles::columns::id, Order::Desc)
+    .json_text_eq(articles::columns::document, &["slug"], "abc123")?
     .range(0, 24)
     .fetch_with_count(Count::Exact)
     .await?;
-let same_dto = adapters::query(client.clone())
-    .select(named::<_, Artifact>())
+let same_dto = videos::query(client.clone())
+    .select(named::<_, Content>())
     .limit(10)
     .fetch()
     .await?;
@@ -107,50 +107,50 @@ Append a `filters` block after a shared projection's selected fields:
 # use rp_supabase_codegen_example::database;
 # use rp_supabase_client::projection;
 projection! {
-    struct Artifact for [database::public::tables::skills, database::public::tables::adapters] {
+    struct Content for [database::public::tables::articles, database::public::tables::videos] {
         name,
     } filters {
-        artifact_id: [id, owner_id],
+        content_id: [id, owner_id],
     }
 }
 ```
 
-Each key maps one generated column identifier per relation, in the order of the `for [...]` list. Here `Artifact::artifact_id::<skills::Row>()` names SQL `id`, while `Artifact::artifact_id::<adapters::Row>()` names SQL `owner_id`. The compiler requires identical decoded value types and non-null filter types across the mappings. SQL names may differ. Unknown columns, missing mappings, duplicate keys, and use on another relation fail compilation.
+Each key maps one generated column identifier per relation, in the order of the `for [...]` list. Here `Content::content_id::<articles::Row>()` names SQL `id`, while `Content::content_id::<videos::Row>()` names SQL `owner_id`. The compiler requires identical decoded value types and non-null filter types across the mappings. SQL names may differ. Unknown columns, missing mappings, duplicate keys, and use on another relation fail compilation.
 
 Filter keys are not DTO fields and do not change the selection or decoder. The example selects only `name`. Use the associated marker with any existing typed column helper:
 
 ```rust,no_run
 # use rp_supabase_codegen_example::database;
 # async fn run(client: rp_supabase_client::Postgrest) -> Result<(), Box<dyn std::error::Error>> {
-use database::public::tables::{adapters, skills};
+use database::public::tables::{videos, articles};
 use rp_supabase_client::{key, projection};
 use rp_supabase_client::schema::{Column, FilterColumn, Relation, SharedFilter, named, params};
 # projection! {
-#     struct Artifact for [database::public::tables::skills, database::public::tables::adapters] {
+#     struct Content for [database::public::tables::articles, database::public::tables::videos] {
 #         name,
 #     } filters {
-#         artifact_id: [id, owner_id],
+#         content_id: [id, owner_id],
 #     }
 # }
 
-fn artifact_filter<R: Relation>(id: i64) -> params::QueryPair
+fn content_filter<R: Relation>(id: i64) -> params::QueryPair
 where
-    Artifact: FilterColumn<key!(type artifact_id), R>,
-    SharedFilter<Artifact, key!(type artifact_id), R>: Column<Relation = R, Filter = i64>,
+    Content: FilterColumn<key!(type content_id), R>,
+    SharedFilter<Content, key!(type content_id), R>: Column<Relation = R, Filter = i64>,
 {
-    params::eq(Artifact::artifact_id::<R>(), &id)
+    params::eq(Content::content_id::<R>(), &id)
 }
 
-let pair = artifact_filter::<skills::Row>(7);
-let rows = adapters::query(client)
-    .select(named::<_, Artifact>())
-    .eq(Artifact::artifact_id::<adapters::Row>(), &7)
+let pair = content_filter::<articles::Row>(7);
+let rows = videos::query(client)
+    .select(named::<_, Content>())
+    .eq(Content::content_id::<videos::Row>(), &7)
     .fetch().await?;
 # Ok(())
 # }
 ```
 
-`key!(type artifact_id)` names the key in generic bounds without a runtime discriminator. `SharedFilter` is a zero-sized relation-specific column marker. Nullable and JSON mappings retain their corresponding column capabilities for each relation. The `filters` block is available only with the shared `for [...]` grammar.
+`key!(type content_id)` names the key in generic bounds without a runtime discriminator. `SharedFilter` is a zero-sized relation-specific column marker. Nullable and JSON mappings retain their corresponding column capabilities for each relation. The `filters` block is available only with the shared `for [...]` grammar.
 
 Column markers enforce relation ownership and scalar filter types. String columns accept borrowed `str`; nullable comparisons take a non-null value. `is_null(column)` requires a nullable column. Typed `in_` accepts borrowed scalar values and quotes/escapes them in list context. `order` composes multiple terms; `order_with_nulls` accepts `Nulls::First` or `Last`. `json_text_eq` requires a JSON/JSONB column and a nonempty key path. It escapes path identifiers and leaves the scalar value literal; an empty path returns a configuration error.
 
@@ -163,30 +163,30 @@ Column markers enforce relation ownership and scalar filter types. String column
 ```rust,no_run
 # use rp_supabase_codegen_example::database;
 # async fn run(client: rp_supabase_client::Postgrest) -> Result<(), Box<dyn std::error::Error>> {
-use database::public::tables::skills;
+use database::public::tables::articles;
 use rp_supabase_client::schema::{Count, named};
 # rp_supabase_client::projection! {
-#     struct Artifact for database::public::tables::skills { id, name }
+#     struct Content for database::public::tables::articles { id, name }
 # }
-# let patch = skills::Update::default();
+# let patch = articles::Update::default();
 
 // `patch` is this generated table's Update payload.
-let affected = skills::query(client.clone())
-    .eq(skills::columns::name, "search")
+let affected = articles::query(client.clone())
+    .eq(articles::columns::name, "search")
     .update(&patch)
     .execute_with_count(Count::Exact)
     .await?;
 
-skills::query(client.clone())
-    .eq(skills::columns::name, "obsolete")
+articles::query(client.clone())
+    .eq(articles::columns::name, "obsolete")
     .delete()
     .execute()
     .await?;
 
-let rows = skills::query(client.clone())
-    .select(named::<_, Artifact>())
+let rows = articles::query(client.clone())
+    .select(named::<_, Content>())
     .into_raw()
-    .fetch::<Vec<Artifact>>()
+    .fetch::<Vec<Content>>()
     .await?;
 # Ok(())
 # }
@@ -206,22 +206,22 @@ Write `.execute()` requests minimal return and does not decode a row body. `.exe
 # use rp_supabase_codegen_example::database;
 # async fn run() -> Result<(), Box<dyn std::error::Error>> {
 # let http = rp_supabase_client::rp_postgrest::reqwest::Client::new();
-use database::public::tables::skills;
+use database::public::tables::articles;
 use rp_supabase_client::schema::{Order, params};
 # rp_supabase_client::projection! {
-#     struct Artifact for database::public::tables::skills { id, name }
+#     struct Content for database::public::tables::articles { id, name }
 # }
 
 let pairs = [
-    params::projection::<skills::Row, Artifact>(),
-    params::eq(skills::columns::name, "search"),
-    params::in_(skills::columns::name, ["search", "storage"]),
-    params::order(skills::columns::name, Order::Asc),
-    params::json_text_eq(skills::columns::manifest, &["fingerprint"], "abc123")?,
+    params::projection::<articles::Row, Content>(),
+    params::eq(articles::columns::name, "search"),
+    params::in_(articles::columns::name, ["search", "storage"]),
+    params::order(articles::columns::name, Order::Asc),
+    params::json_text_eq(articles::columns::document, &["slug"], "abc123")?,
     params::limit(100),
     params::offset(0),
 ];
-let response = http.get("https://example.supabase.co/rest/v1/skills")
+let response = http.get("https://example.supabase.co/rest/v1/articles")
     .query(&pairs)
     .send()
     .await?;
@@ -265,7 +265,7 @@ Use `params::scope(&["tasks"], params::limit(5))` for a runtime embedded relatio
 let predicate = params::or(&[
     params::filter("score", params::Op::Gt, 10),
     params::and(&[
-        params::filter("owner_type", params::Op::Eq, "organization"),
+        params::filter("author_kind", params::Op::Eq, "organization"),
         params::filter("visibility", params::Op::Eq, "public"),
     ])?,
 ])?;
@@ -359,6 +359,11 @@ Single-relation `projection!` continues to support `alias: embed(RelationshipMar
 To-one embeds decode as `Option<Child>` and to-many embeds as `Vec<Child>`. These types remain conservative with `inner`, because RLS and filters can hide rows. Ordinary child filters preserve parent rows; `inner` filters at the embed's parent level. For UPDATE and DELETE, constrain affected rows with root filters. Child filters shape returned representations. PostgREST 16.2 rejects embed-alias existence predicates on DELETE; the client reports the canonical server error and does not rewrite them into FK null checks. See [generated relationship contracts](../supabase-codegen/README.md#typed-relationships) for edge and naming rules.
 
 Typed fetch, RPC, raw fetch, and count methods return the same flat `rp_postgrest::Error`. `error.postgrest_body()` exposes decoded code/message/details/hint; `postgrest_error()` exposes the canonical structured source. `status()`, `url()`, and `response_metadata()` retain observed HTTP metadata, including on successful-response decoding failures. HTTP 300 is an error for checked execution. Ambiguous embedding PGRST201 details can be a typed array of relationship descriptions, not only text. Malformed error-envelope bytes remain in the Decode source. See the [raw error guide](../postgrest/README.md#one-error-result).
+
+## Migration from 0.12
+
+- Regenerate snapshots and Rust bindings with codegen 0.13. Snapshot format 4 adds computed fields.
+- Generated writes to `NOT NULL` JSON/JSONB columns take `schema::NonNullJson`. Convert with `NonNullJson::try_from(value)?` or `NonNullJson::from(map)`.
 
 ## Migration from 0.11
 

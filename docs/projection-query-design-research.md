@@ -59,9 +59,9 @@ Rust can compute tuple output through [associated types](https://doc.rust-lang.o
 Illustrative only:
 
 ```rust,ignore
-let rows = skills::query(client)
-    .select((skills::columns::id, skills::columns::name))
-    .eq(skills::columns::owner_id, &owner_id)
+let rows = articles::query(client)
+    .select((articles::columns::id, articles::columns::name))
+    .eq(articles::columns::owner_id, &owner_id)
     .fetch()
     .await?;
 
@@ -163,7 +163,7 @@ Runtime filter values are compatible with fixed static output. A runtime boolean
 | Query-site generated record | Query-first | Yes | Separate named DTO or generated item needed |
 | Runtime arbitrary selection | Dynamic | Checked dynamic access only | Explicit dynamic contract |
 
-Identical local macro invocations create distinct nominal Rust types. They cannot silently replace the shared `Artifact` DTO across skills and adapters. Named projections remain useful when one type must cross function, crate, or API seams. Returning `impl Serialize` also hides fields from downstream callers, as the [opaque return-type rules](https://doc.rust-lang.org/reference/types/impl-trait.html#abstract-return-types) specify.
+Identical local macro invocations create distinct nominal Rust types. They cannot silently replace the shared `Content` DTO across articles and videos. Named projections remain useful when one type must cross function, crate, or API seams. Returning `impl Serialize` also hides fields from downstream callers, as the [opaque return-type rules](https://doc.rust-lang.org/reference/types/impl-trait.html#abstract-return-types) specify.
 
 I recommend one selection-value interface with an associated output type. Both tuple composition and local named records should use that interface. Keep explicit named records for shared DTOs and public return types. Do not preserve `.select::<P>()` solely for compatibility.
 

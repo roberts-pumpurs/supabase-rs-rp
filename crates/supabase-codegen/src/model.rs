@@ -9,7 +9,7 @@ use alloc::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 /// Current on-disk snapshot format.
-pub const SNAPSHOT_VERSION: u32 = 3;
+pub const SNAPSHOT_VERSION: u32 = 4;
 
 /// Metadata that can be checked into source control for offline builds.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,6 +70,19 @@ pub struct Table {
     pub unique_keys: Vec<Vec<String>>,
     pub foreign_keys: Vec<ForeignKey>,
     pub is_partition: bool,
+    pub computed_fields: Vec<ComputedField>,
+}
+
+/// A `PostgREST` computed field on a relation.
+///
+/// It is a same-schema function whose only input is the relation's row type. Requests select,
+/// filter, and order it like a column, but `*` and writes exclude it. The function may return
+/// SQL null for any row, so the generated value is always nullable.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ComputedField {
+    pub name: String,
+    pub ty: PgType,
 }
 
 /// Qualified relation identity, including targets outside the selected schemas.
@@ -491,24 +504,24 @@ mod contract_tests {
     fn check_membership_accepts_only_literal_exact_forms() {
         let labels = Some(vec!["organization".into(), "user".into()]);
         assert_eq!(
-            check_values("owner_type IN ('user', 'organization')", "owner_type"),
+            check_values("author_kind IN ('user', 'organization')", "author_kind"),
             labels
         );
         assert_eq!(
             check_values(
-                "((owner_type = ANY (ARRAY['user'::text, 'organization'::text])))",
-                "owner_type"
+                "((author_kind = ANY (ARRAY['user'::text, 'organization'::text])))",
+                "author_kind"
             ),
             labels
         );
         for expression in [
-            "owner_type NOT IN ('user')",
-            "owner_type IN ('user', other)",
-            "owner_type IN ('user') OR owner_type IS NULL",
-            "lower(owner_type) IN ('user')",
-            "owner_type::uuid IN ('user')",
+            "author_kind NOT IN ('user')",
+            "author_kind IN ('user', other)",
+            "author_kind IN ('user') OR author_kind IS NULL",
+            "lower(author_kind) IN ('user')",
+            "author_kind::uuid IN ('user')",
         ] {
-            assert!(check_values(expression, "owner_type").is_none());
+            assert!(check_values(expression, "author_kind").is_none());
         }
     }
 

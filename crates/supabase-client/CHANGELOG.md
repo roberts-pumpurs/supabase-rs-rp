@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `schema::NonNullJson`, a JSON value that is never null, for generated write payloads on NOT NULL json/jsonb columns
+
 ## [0.12.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-client-v0.11.0...rp-supabase-client-v0.12.0) - 2026-10-09
 
 ### Other

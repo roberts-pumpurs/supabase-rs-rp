@@ -118,15 +118,15 @@ impl rp_supabase_client::schema::Column for Label {
 }
 impl rp_supabase_client::schema::NullableColumn for Label {}
 #[derive(Clone, Copy)]
-struct Manifest;
-impl rp_supabase_client::schema::Column for Manifest {
+struct Document;
+impl rp_supabase_client::schema::Column for Document {
     type Relation = Row;
     type Value = serde_json::Value;
     type Filter = serde_json::Value;
-    const NAME: &'static str = "manifest";
-    const SELECT: &'static str = "manifest";
+    const NAME: &'static str = "document";
+    const SELECT: &'static str = "document";
 }
-impl rp_supabase_client::schema::JsonColumn for Manifest {}
+impl rp_supabase_client::schema::JsonColumn for Document {}
 
 #[test]
 fn pure_parameter_grammar_matches_typed_queries() {
@@ -136,7 +136,7 @@ fn pure_parameter_grammar_matches_typed_queries() {
         params::eq(Id, &7_i32),
         params::in_(Label, values),
         params::is_null(Label),
-        params::json_text_eq(Manifest, &["nested,key", "fingerprint"], "a,b\"\\").unwrap(),
+        params::json_text_eq(Document, &["nested,key", "slug"], "a,b\"\\").unwrap(),
         params::order_with_nulls(Id, Order::Desc, Nulls::Last),
         params::projection::<Row, Row>(),
     ];
@@ -149,13 +149,13 @@ fn pure_parameter_grammar_matches_typed_queries() {
     assert_eq!(params::in_(Id, &[1_i32, 2_i32]).1, r#"in.("1","2")"#);
     let empty: &[i32] = &[];
     assert_eq!(params::in_(Id, empty).1, "in.()");
-    assert_eq!(pairs[3].0, r#"manifest->"nested,key"->>fingerprint"#);
+    assert_eq!(pairs[3].0, r#"document->"nested,key"->>slug"#);
     assert_eq!(pairs[3].1, "eq.a,b\"\\");
     let raw = query::<Row>(Postgrest::new("http://localhost:1").unwrap())
         .eq(Id, &7_i32)
         .in_(Label, values)
         .is_null(Label)
-        .json_text_eq(Manifest, &["nested,key", "fingerprint"], "a,b\"\\")
+        .json_text_eq(Document, &["nested,key", "slug"], "a,b\"\\")
         .unwrap()
         .order_with_nulls(Id, Order::Desc, Nulls::Last)
         .into_raw();
@@ -166,7 +166,7 @@ fn pure_parameter_grammar_matches_typed_queries() {
         .collect();
     assert_eq!(actual, expected);
     assert!(matches!(
-        params::json_text_eq(Manifest, &[], "value"),
+        params::json_text_eq(Document, &[], "value"),
         Err(Error::Configuration(
             rp_supabase_client::rp_postgrest::ConfigError::EmptyJsonPath
         ))
