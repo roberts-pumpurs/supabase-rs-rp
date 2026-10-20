@@ -12,7 +12,7 @@ Keep a schema snapshot in source control. Ordinary builds need no database or cr
 
 ```toml
 [dependencies]
-rp-supabase-client = "0.12"
+rp-supabase-client = "0.13"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
 # Add these when your schema has UUID or temporal columns.
@@ -20,11 +20,11 @@ uuid = { version = "1", features = ["serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 
 [build-dependencies]
-rp-supabase-codegen = "0.12"
+rp-supabase-codegen = "0.13"
 ```
 
 Generated bindings only need the `schema` runtime. Applications with their own HTTP client and
-response handling can use `rp-supabase-client = { version = "0.12", default-features = false }`.
+response handling can use `rp-supabase-client = { version = "0.13", default-features = false }`.
 That leaves out authentication and does not enable `serde_json/arbitrary_precision`.
 
 ```rust,no_run
@@ -55,7 +55,7 @@ Enable the `database` build-dependency feature. Database and TLS dependencies do
 
 ```toml
 [build-dependencies]
-rp-supabase-codegen = { version = "0.12", features = ["database"] }
+rp-supabase-codegen = { version = "0.13", features = ["database"] }
 ```
 
 ```rust,no_run

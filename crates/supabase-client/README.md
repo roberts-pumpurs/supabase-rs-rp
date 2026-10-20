@@ -2,11 +2,11 @@
 
 [![crates.io](https://img.shields.io/crates/v/rp-supabase-client.svg)](https://crates.io/crates/rp-supabase-client) [![docs.rs](https://docs.rs/rp-supabase-client/badge.svg)](https://docs.rs/rp-supabase-client)
 
-Supabase authentication and query-first typed PostgreSQL queries. Version 0.12 uses the workspace-owned [rp-postgrest 3.2](../postgrest/README.md). Raw and typed requests share its checked execution, JSON decoder, and flat error type.
+Supabase authentication and query-first typed PostgreSQL queries. Version 0.13 uses the workspace-owned [rp-postgrest 3.2](../postgrest/README.md). Raw and typed requests share its checked execution, JSON decoder, and flat error type.
 
 ```toml
 [dependencies]
-rp-supabase-client = "0.12"
+rp-supabase-client = "0.13"
 ```
 
 Use [rp-supabase-codegen](../supabase-codegen/README.md) in a build script to generate relation, column, relationship, payload, and function markers. The snippets below assume the generated `database` module from the [complete example](../supabase-codegen-example/README.md). Substitute your own generated names and value types.
