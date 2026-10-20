@@ -80,15 +80,15 @@ assert_is_empty = "allow"
 # rp-supabase-mock has no entry here: workspace crates use it only as a path-only
 # dev-dependency, so publishing never waits for the mock release.
 rp-supabase-auth = { path = "crates/supabase-auth", version = "0.10" }
-rp-supabase-client = { path = "crates/supabase-client", version = "0.12", default-features = false }
+rp-supabase-client = { path = "crates/supabase-client", version = "0.13", default-features = false }
 rp-supabase-storage = { path = "crates/supabase-storage", version = "0.2" }
 rp-supabase-functions = { path = "crates/supabase-functions", version = "0.1" }
-supabase-rp = { path = "crates/supabase-rp", version = "0.4" }
+supabase-rp = { path = "crates/supabase-rp", version = "0.5" }
 rp-postgrest-error = { path = "crates/postgrest-error", version = "0.8" }
 rp-supabase-realtime = { path = "crates/supabase-realtime", version = "0.10" }
-rp-supabase-codegen = { path = "crates/supabase-codegen", version = "0.12" }
+rp-supabase-codegen = { path = "crates/supabase-codegen", version = "0.13" }
 rp-postgrest = { path = "crates/postgrest", version = "3.2" }
-rp-supabase-client-macros = { path = "crates/supabase-client-macros", version = "=0.12.0" }
+rp-supabase-client-macros = { path = "crates/supabase-client-macros", version = "=0.13.0" }
 
 # Async
 futures-concurrency = "7.4"

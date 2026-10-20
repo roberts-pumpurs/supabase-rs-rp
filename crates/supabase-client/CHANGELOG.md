@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-client-v0.12.0...rp-supabase-client-v0.13.0) - 2026-10-20
+
+### Breaking
+
+- Regenerate snapshots and bindings with codegen 0.13 (snapshot format 4). Generated writes to `NOT NULL` JSON/JSONB columns take `schema::NonNullJson`. See [Migration from 0.12](README.md#migration-from-012). ([#37](https://github.com/roberts-pumpurs/supabase-rs-rp/pull/37))
+
 ### Added
 
-- `schema::NonNullJson`, a JSON value that is never null, for generated write payloads on NOT NULL json/jsonb columns
+- `schema::NonNullJson`, a JSON value that is never null, for generated write payloads on `NOT NULL` json/jsonb columns.
 
 ## [0.12.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-client-v0.11.0...rp-supabase-client-v0.12.0) - 2026-10-09
 
