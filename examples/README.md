@@ -49,7 +49,7 @@ Dependencies must already be cached for Cargo's offline mode. The generator runs
 `build.rs`; it needs no separate generator CLI. Generated rows implement `Projection<Row>`
 and finite column/FK lookups. Regenerate Rust output when you upgrade `rp-supabase-codegen`; it must match the `rp-supabase-client` 0.11 runtime. JSON/JSONB markers retain `JsonColumn`.
 
-Its `smoke.sql` and permanent `src/gaps.rs` scenario exercise shared skills/adapters DTOs, typed
+Its `smoke.sql` and permanent `src/gaps.rs` scenario exercise shared articles/videos DTOs, typed
 order, IN, JSON text paths, pagination, counts, minimal writes, raw DTO decoding, and pure
 `schema::params` pairs. The runner also checks relationship projections and message CRUD/view/RPC.
 Typed RPC fetches infer their return type. HTTP 204 unit-valued void behavior belongs to consumer

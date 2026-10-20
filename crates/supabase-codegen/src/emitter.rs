@@ -522,23 +522,8 @@ impl Emitter<'_> {
         quote!(#(#attrs)* #(#targeted)* #[derive(#(#derives),*)])
     }
 
-    #[expect(
-        clippy::too_many_lines,
-        reason = "One SQL wire-type mapping keeps scalar choices visible together."
-    )]
     fn ty(&self, ty: &PgType, depth: usize) -> Result<TokenStream, Error> {
-        let key = match ty {
-            PgType::Builtin(name) => Some(if name.contains('.') {
-                name.clone()
-            } else {
-                format!("pg_catalog.{name}")
-            }),
-            PgType::Named { schema, name } | PgType::Domain { schema, name, .. } => {
-                Some(format!("{schema}.{name}"))
-            }
-            PgType::Array(_) => None,
-        };
-        if let Some(overridden) = key.as_ref().and_then(|key| self.overrides.get(key)) {
+        if let Some(overridden) = type_key(ty).and_then(|key| self.overrides.get(&key)) {
             let parents = core::iter::repeat_with(|| quote!(super::)).take(depth);
             return Ok(quote!(#(#parents)* #overridden));
         }
@@ -647,6 +632,33 @@ impl Emitter<'_> {
         )
     }
 
+    // PostgREST stores a JSON null in a write payload as SQL NULL, so a non-null JSON write
+    // field uses `NonNullJson` wherever the read side would decode `serde_json::Value`.
+    fn write_field_ty(
+        &self,
+        ty: &PgType,
+        target: &str,
+        depth: usize,
+    ) -> Result<TokenStream, Error> {
+        if !self.field_overrides.contains_key(target) && self.is_json_value(ty) {
+            let runtime = &self.runtime;
+            return Ok(quote!(#runtime::NonNullJson));
+        }
+        self.field_ty(ty, target, depth)
+    }
+
+    // Whether `ty` renders as `serde_json::Value`, honoring type overrides like `ty` does.
+    fn is_json_value(&self, ty: &PgType) -> bool {
+        if type_key(ty).is_some_and(|key| self.overrides.contains_key(&key)) {
+            return false;
+        }
+        match ty {
+            PgType::Domain { base, .. } => self.is_json_value(base),
+            PgType::Builtin(_) => is_json_column_type(ty),
+            PgType::Named { .. } | PgType::Array(_) => false,
+        }
+    }
+
     fn json_wrappers(&self, ty: &PgType, base: TokenStream) -> TokenStream {
         match ty {
             PgType::Array(inner) => {
@@ -675,7 +687,15 @@ impl Emitter<'_> {
             let column = contract.column;
             let name = ident(&column.name, false)?;
             let wire = &column.name;
-            let base = self.field_ty(&column.ty, &format!("{target}.{}", column.name), depth)?;
+            let field_target = format!("{target}.{}", column.name);
+            let base = match mode {
+                FieldMode::Insert | FieldMode::Update if !contract.nullable => {
+                    self.write_field_ty(&column.ty, &field_target, depth)?
+                }
+                FieldMode::Row | FieldMode::Insert | FieldMode::Update => {
+                    self.field_ty(&column.ty, &field_target, depth)?
+                }
+            };
             let ty = contract.value_type(base);
             if presence == FieldPresence::Omittable {
                 let runtime = &self.runtime;
@@ -744,6 +764,18 @@ impl Emitter<'_> {
     }
 }
 
+// Override lookup key: `schema.name` for named types, `pg_catalog.name` for unqualified builtins.
+fn type_key(ty: &PgType) -> Option<String> {
+    match ty {
+        PgType::Builtin(name) if name.contains('.') => Some(name.clone()),
+        PgType::Builtin(name) => Some(format!("pg_catalog.{name}")),
+        PgType::Named { schema, name } | PgType::Domain { schema, name, .. } => {
+            Some(format!("{schema}.{name}"))
+        }
+        PgType::Array(_) => None,
+    }
+}
+
 fn is_json_column_type(ty: &PgType) -> bool {
     match ty {
         PgType::Builtin(name) => {
@@ -785,11 +817,17 @@ fn json_field_types<'a>(
         }
         for table in &schema.tables {
             let name = ident(&table.name, false)?;
-            for column in &table.columns {
-                fields.insert(
-                    format!("{schema_ident}.tables.{name}.{}", column.name),
-                    &column.ty,
-                );
+            let computed = table
+                .computed_fields
+                .iter()
+                .map(|field| (&field.name, &field.ty));
+            for (field, ty) in table
+                .columns
+                .iter()
+                .map(|column| (&column.name, &column.ty))
+                .chain(computed)
+            {
+                fields.insert(format!("{schema_ident}.tables.{name}.{field}"), ty);
             }
         }
         let mut groups: BTreeMap<&str, Vec<&Function>> = BTreeMap::new();
@@ -867,12 +905,18 @@ fn column_target(
         let schema_name = ident(&schema.name, false)?;
         for table in &schema.tables {
             let table_name = ident(&table.name, false)?;
-            for column in &table.columns {
-                let canonical = format!("{schema_name}.tables.{table_name}.{}", column.name);
+            let computed = table.computed_fields.iter().map(|field| &field.name);
+            for field in table
+                .columns
+                .iter()
+                .map(|column| &column.name)
+                .chain(computed)
+            {
+                let canonical = format!("{schema_name}.tables.{table_name}.{field}");
                 if target == canonical
-                    || target == format!("{schema_name}.{table_name}.{}", column.name)
-                    || target == format!("{}.tables.{}.{}", schema.name, table.name, column.name)
-                    || target == format!("{}.{}.{}", schema.name, table.name, column.name)
+                    || target == format!("{schema_name}.{table_name}.{field}")
+                    || target == format!("{}.tables.{}.{field}", schema.name, table.name)
+                    || target == format!("{}.{}.{field}", schema.name, table.name)
                 {
                     return Ok(Some(canonical));
                 }
@@ -1175,22 +1219,53 @@ pub fn generate(snapshot: &Snapshot, config: &Config) -> Result<String, Error> {
                 &mut used_relationship_aliases,
             )?;
             let wire_name = &table.name;
+            unique(
+                table
+                    .columns
+                    .iter()
+                    .map(|column| column.name.as_str())
+                    .chain(
+                        table
+                            .computed_fields
+                            .iter()
+                            .map(|field| field.name.as_str()),
+                    ),
+                false,
+                &format!("{target} columns and computed fields"),
+            )?;
             let mut writes = TokenStream::new();
             let mut column_markers = TokenStream::new();
-            for contract in &columns {
-                let column = contract.column;
-                let column_name = ident(&column.name, false)?;
+            // Computed fields share the column contract for selection, filtering, and ordering,
+            // but stay out of `Row` (`*` omits them) and the write payloads.
+            let markers = columns
+                .iter()
+                .map(|contract| {
+                    (
+                        &contract.column.name,
+                        &contract.column.ty,
+                        contract.nullable,
+                    )
+                })
+                .chain(
+                    table
+                        .computed_fields
+                        .iter()
+                        .map(|field| (&field.name, &field.ty, true)),
+                );
+            for (wire, ty, nullable) in markers {
+                let column_name = ident(wire, false)?;
                 let key = key_name(&column_name, &runtime);
-                let wire = &column.name;
                 let selection = selection_identifier(wire);
-                let base = emitter.field_ty(&column.ty, &format!("{target}.{}", column.name), 4)?;
-                let value = contract.value_type(base.clone());
-                let nullable_impl = if contract.nullable {
-                    quote!(impl #runtime::NullableColumn for #column_name {})
+                let base = emitter.field_ty(ty, &format!("{target}.{wire}"), 4)?;
+                let (value, nullable_impl) = if nullable {
+                    (
+                        quote!(::std::option::Option<#base>),
+                        quote!(impl #runtime::NullableColumn for #column_name {}),
+                    )
                 } else {
-                    TokenStream::new()
+                    (base.clone(), TokenStream::new())
                 };
-                let json_impl = if is_json_column_type(&column.ty) {
+                let json_impl = if is_json_column_type(ty) {
                     quote!(impl #runtime::JsonColumn for #column_name {})
                 } else {
                     TokenStream::new()
@@ -1320,12 +1395,9 @@ pub fn generate(snapshot: &Snapshot, config: &Config) -> Result<String, Error> {
                 for argument in &function.arguments {
                     let field = ident(&argument.name, false)?;
                     let wire = &argument.name;
-                    let base = emitter.field_ty(
-                        &argument.ty,
-                        &format!("{target}.Args.{}", argument.name),
-                        3,
-                    )?;
+                    let field_target = format!("{target}.Args.{}", argument.name);
                     if argument.has_default {
+                        let base = emitter.field_ty(&argument.ty, &field_target, 3)?;
                         let runtime = &emitter.runtime;
                         let skip = format!(
                             "{}::Field::is_omit",
@@ -1333,8 +1405,10 @@ pub fn generate(snapshot: &Snapshot, config: &Config) -> Result<String, Error> {
                         );
                         args.extend(quote!(#[serde(rename = #wire, skip_serializing_if = #skip)] pub #field: #runtime::Field<::std::option::Option<#base>>,));
                     } else if strict && !argument.nullable {
+                        let base = emitter.write_field_ty(&argument.ty, &field_target, 3)?;
                         args.extend(quote!(#[serde(rename = #wire)] pub #field: #base,));
                     } else {
+                        let base = emitter.field_ty(&argument.ty, &field_target, 3)?;
                         args.extend(quote!(#[serde(rename = #wire)] pub #field: ::std::option::Option<#base>,));
                     }
                 }

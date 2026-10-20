@@ -23,9 +23,9 @@ Typed column markers check filters. Generated payloads check insert and update f
 Relationship handles check child columns and selected projection ownership.
 Compiler consumers cover local and generic selections, renamed runtime paths, identifier hygiene, strict nullable/duplicate keys, wrong edges/children/owners, inner and empty embeds, locked reselection, shared DTO contracts, and paged-read mutation rejection.
 
-`src/gaps.rs` defines one `Artifact` DTO for both generated `skills` and `adapters` relations.
+`src/gaps.rs` defines one `Content` DTO for both generated `articles` and `videos` relations.
 Its permanent live scenario covers typed ordering, borrowed IN values with commas/quotes/backslashes,
-JSON text paths, inclusive pagination, server counts, minimal writes, and raw `Vec<Artifact>` decoding.
+JSON text paths, inclusive pagination, server counts, minimal writes, and raw `Vec<Content>` decoding.
 It also renders `schema::params` pairs without constructing a typed query and feeds them to the
 owned builder. An application can pass those unencoded pairs to its own HTTP query serializer.
 JSON/JSONB markers implement `JsonColumn`; unrelated columns do not.
@@ -44,9 +44,11 @@ cargo test -p rp-supabase-codegen-example --offline
 
 ## Live scenario
 
-Apply `smoke.sql` to a disposable PostgreSQL database. It creates message, relationship, `skills`,
-`adapters`, and `artifact_links` fixtures, plus deliberately mismatched artifact tables for compiler
-contracts. It grants access for verification. Do not apply it to the repository's existing Supabase
+Apply `smoke.sql` to a disposable PostgreSQL database. It creates message, relationship, `articles`,
+`videos`, and `content_links` fixtures, plus deliberately mismatched content tables for compiler
+contracts. The `excerpt` and `message_meta` functions take an unnamed `messages` row, so they become
+computed fields on `messages` rather than RPCs.
+It grants access for verification. Do not apply it to the repository's existing Supabase
 database or a production project.
 
 Expose `public` through PostgREST. Set these environment variables:
@@ -62,13 +64,18 @@ PK/UNIQUE reverse to-one shapes, ordered composite FKs, nested filters, and empt
 It compares left and inner behavior. Run-specific cleanup removes relationship fixtures after recoverable errors.
 Projected insert, update, and delete also run after scoped child filters lock the selection.
 
-`gaps::live` runs next. It inserts run-specific skills and adapters with minimal return, reads the
+`gaps::live` runs next. It inserts run-specific articles and videos with minimal return, reads the
 same shared DTO through both relations, checks exact counts and parameter rendering, and attempts
-both cleanup deletes even after a recoverable scenario error. The skill cleanup checks its affected
-row count; the adapter cleanup requests minimal return.
+both cleanup deletes even after a recoverable scenario error. The article cleanup checks its affected
+row count; the video cleanup requests minimal return.
 
 It then inserts a projected message, reads it with a typed filter, updates its nullable field,
 reads the view, calls the RPC, and deletes the row. It checks numeric precision through typed fetches.
+It also selects, filters, and orders by the `excerpt` computed field. Computed fields are sent only
+when selected, since PostgREST leaves them out of `*`.
+
+Write payloads use `NonNullJson` for NOT NULL `json`/`jsonb` columns such as `metadata` and
+`document`, so a JSON null is rejected before the request. Build one with `json!(...).try_into()`.
 
 The scenario uses a 30-second timeout. A panic or timeout can leave inserted rows. Use a disposable database.
 

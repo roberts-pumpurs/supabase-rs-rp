@@ -187,6 +187,7 @@ fn compare_values(
                     | "tables"
                     | "functions"
                     | "columns"
+                    | "computed_fields"
                     | "fields"
                     | "foreign_keys"
                     | "unique_keys"
@@ -311,6 +312,7 @@ mod tests {
                 "tables": [{
                     "name": "users", "kind": "table", "primary_key": ["id"],
                     "unique_keys": [["id"], ["email"]], "foreign_keys": [], "is_partition": false,
+                    "computed_fields": [],
                     "columns": [
                         { "name": "id", "ty": { "kind": "builtin", "value": "int4" },
                           "nullable": false, "has_default": true, "generated": false, "identity": "none" },
@@ -337,6 +339,23 @@ mod tests {
             changes[1],
             "~ snapshot.schemas[\"public\"].tables[\"users\"].columns[\"email\"].nullable: snapshot=false, database=true"
         );
+    }
+    #[test]
+    fn computed_field_drift_is_keyed_by_name() {
+        use rp_supabase_codegen::model::{ComputedField, PgType};
+        let field = |name: &str| ComputedField {
+            name: name.to_owned(),
+            ty: PgType::Builtin("text".to_owned()),
+        };
+        let mut expected = snapshot();
+        expected.schemas[0].tables[0].computed_fields = vec![field("label")];
+        let mut actual = expected.clone();
+        actual.schemas[0].tables[0].computed_fields = vec![field("display"), field("label")];
+        let changes = schema_drift(&expected, &actual).unwrap();
+        assert_eq!(changes.len(), 1);
+        assert!(changes[0].starts_with(
+            "+ snapshot.schemas[\"public\"].tables[\"users\"].computed_fields[\"display\"]:"
+        ));
     }
     #[test]
     fn composite_foreign_key_drift_compares_every_source_column() {

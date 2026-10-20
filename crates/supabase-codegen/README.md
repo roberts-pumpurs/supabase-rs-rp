@@ -4,7 +4,7 @@
 
 Generate Rust bindings for Supabase and PostgreSQL schemas in `build.rs`. No generator CLI is required.
 
-The generator reads a versioned JSON snapshot or introspects PostgreSQL directly. It emits schema modules with table rows, insert and update payloads, enums, composites, and named-argument RPC bindings.
+The generator reads a versioned JSON snapshot or introspects PostgreSQL directly. It emits schema modules with table rows, insert and update payloads, computed fields, enums, composites, and named-argument RPC bindings.
 
 ## Offline builds
 
@@ -47,7 +47,7 @@ The generator registers the snapshot with Cargo's change detection. It writes on
 
 Schema crates can call `.reexport_macros()` and include their generated bindings at the crate root. Consumers then use `renamed_schema::select!(Row => { id })` and `renamed_schema::key!(id)` without naming the runtime dependency. The wrappers use `$crate` and a public hidden runtime reexport, so Cargo dependency aliases do not affect expansion. The same macros work inside the schema crate. `key!(type id)` also works.
 
-See the [complete snapshot and executable example](../supabase-codegen-example). The public `model::Snapshot` format is version 3. Older snapshots require regeneration.
+See the [complete snapshot and executable example](../supabase-codegen-example). The public `model::Snapshot` format is version 4. Older snapshots require regeneration.
 
 ## Direct database introspection
 
@@ -117,7 +117,7 @@ For `public.messages`, the generator emits:
 Rows implement `schema::Relation` and `schema::Projection<Row>`. Each relation module exposes
 `query(client)`. The query retains its relation and response type until decoding.
 It consumes the client, so cloning remains explicit. Regenerate previously emitted Rust bindings
-with current codegen before using the matching runtime. The snapshot format is version 3.
+with current codegen before using the matching runtime. The snapshot format is version 4.
 JSON and JSONB column markers, including domains over those types, implement `schema::JsonColumn`.
 
 ```rust,no_run
@@ -166,6 +166,42 @@ String columns accept `&str` without a caller allocation. Generated enums displa
 Use `is_null(column)` for nullable fields, not `eq(column, &None)`.
 The runtime escapes column identifiers and lets the HTTP client encode scalar values once.
 
+### Computed fields
+
+PostgREST treats a function that takes a row as a [computed field](https://docs.postgrest.org/en/stable/references/api/computed_fields.html).
+The generator emits one when a function has exactly one input argument, the argument's type is the
+row type of a selected table or view in the same schema, and it returns a single non-record value.
+The argument may be unnamed. Set-returning functions, functions with more arguments, and functions
+whose name matches a physical column are skipped.
+
+A computed field gets a marker in the relation's `columns` module, so `select!`, `projection!`,
+filters, ordering, and embedded filters use it like a column. Its value is always nullable,
+because the function may return null for any row. It is not a field of `Row`, because PostgREST
+leaves computed fields out of `select=*`. Insert and update payloads never include it.
+
+```rust,no_run
+# use rp_supabase_codegen_example::database;
+# use database::public::tables::messages;
+# async fn run(client: rp_supabase_client::Postgrest) -> Result<(), Box<dyn std::error::Error>> {
+use rp_supabase_client::{select, schema::{Order, Selection}};
+let selected = {
+    use database::public::tables::messages::Row as Message;
+    select!(Message => { id, excerpt })
+};
+let rows = selected.query(client.clone())
+    .eq(messages::columns::excerpt, "Hello")
+    .order(messages::columns::excerpt, Order::Desc)
+    .fetch()
+    .await?;
+// Each row's `excerpt` field has type Option<String>.
+# Ok(())
+# }
+```
+
+A function with a named row argument also stays callable as an RPC. Use an unnamed argument to keep
+it off `/rpc`. `.json_type(...)` and `.column_type(...)` accept computed-field targets, such as
+`public.tables.messages.message_meta`.
+
 `fetch()` infers `Vec<P>` for `P: Projection<R>`. `fetch_one()` infers `P` and uses PostgREST's
 single-row response semantics. Both methods return the owned `rp_postgrest::Error` directly.
 `Error::postgrest_body()` exposes the decoded code, message, details, and hint.
@@ -178,7 +214,7 @@ One DTO can implement the projection contract for several relations:
 ```rust,no_run
 # use rp_supabase_codegen_example::database;
 rp_supabase_client::projection! {
-    struct Artifact for [database::public::tables::skills, database::public::tables::adapters] {
+    struct Content for [database::public::tables::articles, database::public::tables::videos] {
         id, name, owner_id
     }
 }
@@ -189,7 +225,7 @@ response keys. Unselected columns may differ. Relationship handles still enforce
 target, and selected child projection.
 
 Typed queries support `order(column, Order::Asc)`, `order_with_nulls`, borrowed literal `in_`
-values, and `json_text_eq(json_column, &["fingerprint"], value)?`. JSON path keys are escaped
+values, and `json_text_eq(json_column, &["slug"], value)?`. JSON path keys are escaped
 identifiers. Scalar comparison values remain literal; IN values use list-specific quoting.
 `limit` and inclusive `range` produce a paged read query that cannot become a typed mutation.
 `fetch_with_count(Count::Exact)` returns rows and the server total; `count(Count::Exact)` reads
@@ -354,7 +390,9 @@ Bulk inserts with different omitted keys require care. PostgREST's `Prefer: miss
 
 ### Types
 
-Integer widths match PostgreSQL. UUID and temporal columns use `uuid` and `chrono`. Timestamps with time zones use `DateTime<FixedOffset>`. JSON columns use `serde_json::Value`.
+Integer widths match PostgreSQL. UUID and temporal columns use `uuid` and `chrono`. Timestamps with time zones use `DateTime<FixedOffset>`. JSON columns use `serde_json::Value` in rows.
+
+Writes to `NOT NULL` JSON and JSONB columns use `schema::NonNullJson`, and strict non-null JSON RPC arguments do too. PostgREST turns a JSON null in the request body into SQL `NULL`, which the constraint rejects. Build one with `NonNullJson::try_from(value)` or from a `serde_json::Map`. Rows keep `serde_json::Value`, because a `NOT NULL` column can still store the JSON value `null`. Columns with a `json_type`, `column_type`, or type override keep that type.
 
 Numeric columns use `serde_json::Number`. Enable `arbitrary_precision` for schema-only runtime use or decoding outside the client. The default client feature enables it for typed fetches. Do not convert exact numerics through `f64`. Non-finite numeric values need a custom mapping because they are not ordinary JSON numbers.
 
@@ -364,17 +402,17 @@ Bytea, network, interval, range, geometric, and text-search columns use their JS
 
 Enums preserve exact database labels with Serde renames. Composites honor snapshot field nullability. Live introspection defaults composite fields to nullable unless a type comment declares `@not_null id, name`. Domains preserve their qualified identity for overrides and otherwise resolve to their base type. Unknown types fail generation and require `type_override`.
 
-Validated string membership CHECK constraints, including PostgreSQL's normalized `= ANY (ARRAY[...])` form, generate enums in `public::enums`, named after the table and column. Compound predicates, arbitrary casts and nonliteral values remain their SQL base types. Enums support Serde and `Display` for filters. `.column_type("public.adapters.owner_type", "::domain::OwnerType")` replaces a column's base Rust type across Row, Insert, Update and column markers without changing omission or nullability. The canonical `public.tables.adapters.owner_type` target also works. Unknown columns or invalid Rust types fail generation.
+Validated string membership CHECK constraints, including PostgreSQL's normalized `= ANY (ARRAY[...])` form, generate enums in `public::enums`, named after the table and column. Compound predicates, arbitrary casts and nonliteral values remain their SQL base types. Enums support Serde and `Display` for filters. `.column_type("public.check_probe.author_kind", "::domain::AuthorKind")` replaces a column's base Rust type across Row, Insert, Update and column markers without changing omission or nullability. The canonical `public.tables.videos.author_kind` target also works. Unknown columns or invalid Rust types fail generation.
 
 Relationship canonical names remain unchanged. Single-column forward links expose the FK column name without a trailing `_id`, when unambiguous. Reverse links expose the source table name when unambiguous. `.relationship_alias("public.tables.orders.relationships.orders_customer_fkey", "buyer")` adds a checked custom alias. Alias markers retain the canonical marker's cardinality and exact PostgREST constraint hint. Unknown targets and alias name collisions fail generation.
 
-Use `.json_type("public.functions.invite_org_member.Returns", "crate::InviteOutcome")` for typed JSON RPC results. Table columns accept `public.tables.artifacts.manifest` or `public.artifacts.manifest`; composite fields use `public.composites.ResultInfo.data`, RPC inputs use `public.functions.invite.Args.audience`, and OUT fields use `public.functions.invite.Record.data`. Targets must have a JSON/JSONB type, a domain over JSON, or an array of JSON. Custom Serde types bind in the root prelude scope. Generated fields retain SQL `Option`, `Array`, omission and set-returning wrappers, so plain fetches decode the custom type directly.
+Use `.json_type("public.functions.fetch_outcome.Returns", "crate::Outcome")` for typed JSON RPC results. Table columns accept `public.tables.content.document` or `public.content.document`; composite fields use `public.composites.JsonInfo.data`, RPC inputs use `public.functions.fetch_outcome.Args.audience`, and OUT fields use `public.functions.outcome_records.Record.data`. Targets must have a JSON/JSONB type, a domain over JSON, or an array of JSON. Custom Serde types bind in the root prelude scope. Generated fields retain SQL `Option`, `Array`, omission and set-returning wrappers, so plain fetches decode the custom type directly.
 
 ### Functions
 
 Named-object RPCs emit `public::functions::<name>::Args`, `Returns`, and `Function`. Overloads use deterministic numbered modules, such as `lookup_0` and `lookup_1`, while retaining the original RPC name.
 
-By default, non-default arguments use `Option<T>` because PostgreSQL functions can accept null. `.strict_args()` makes them `T` globally; `.strict_args_for("public.functions.finalize_flow_publish")` does so for one generated function module. A function comment such as `@nullable p_version` opts an argument back into `Option<T>` and persists that contract in the snapshot. Unknown annotation argument names fail introspection. Default arguments always use `Field<Option<T>>`, preserving omission versus explicit null. Custom JSON and SQL type mappings follow the same policy. Scalar results are nullable. Set results use vectors. Non-set composite and OUT results use a single struct. OUT and TABLE fields have a generated `Record` type, including singleton OUT and INOUT results.
+By default, non-default arguments use `Option<T>` because PostgreSQL functions can accept null. `.strict_args()` makes them `T` globally; `.strict_args_for("public.functions.publish_post")` does so for one generated function module. A function comment such as `@nullable p_revision` opts an argument back into `Option<T>` and persists that contract in the snapshot. Unknown annotation argument names fail introspection. Default arguments always use `Field<Option<T>>`, preserving omission versus explicit null. Custom JSON and SQL type mappings follow the same policy. Scalar results are nullable. Set results use vectors. Non-set composite and OUT results use a single struct. OUT and TABLE fields have a generated `Record` type, including singleton OUT and INOUT results.
 
 ```rust,no_run
 # use rp_supabase_codegen_example::database;
@@ -421,11 +459,11 @@ Prelude items appear at the generated root. Nested modules import their parent, 
 
 ## Scope and safety
 
-View and materialized-view bindings are read-only. Ordinary views infer non-null direct base-column projections from a single base table, without joins, CTEs or grouping. Materialized views remain nullable because their stored rows can predate current base constraints. View comments and RPC record function comments can declare `@not_null field, other_field`. Snapshots retain these contracts. `.not_null("public.functions.finalize_flow_publish.Record", ["flow_id", "created"])` sets the same contract in the builder. View targets use `public.tables.view.Row`; composite targets use `public.composites.ResultInfo`. Unknown fields and targets fail generation.
+View and materialized-view bindings are read-only. Ordinary views infer non-null direct base-column projections from a single base table, without joins, CTEs or grouping. Materialized views remain nullable because their stored rows can predate current base constraints. View comments and RPC record function comments can declare `@not_null field, other_field`. Snapshots retain these contracts. `.not_null("public.functions.publish_post.Record", ["post_id", "created"])` sets the same contract in the builder. View targets use `public.tables.view.Row`; composite targets use `public.composites.JsonInfo`. Unknown fields and targets fail generation.
 
-The named-object RPC generator excludes unnamed input arguments, trigger functions, polymorphic pseudotypes, and dynamic records without named output fields. Those need different request bodies or explicit application-specific contracts.
+The named-object RPC generator excludes unnamed input arguments, trigger functions, polymorphic pseudotypes, and dynamic records without named output fields. Those need different request bodies or explicit application-specific contracts. An unnamed row argument can still make the function a computed field.
 
-Bindings do not validate CHECK constraints, enforce RLS, grant permissions, or type-check arbitrary PostgREST expressions. Computed, view, self-referential, cross-schema, and partition-child relationships stay raw. Many-to-many queries can use explicit nested junction relationships; no direct shortcut is inferred.
+Bindings do not validate CHECK constraints, enforce RLS, grant permissions, or type-check arbitrary PostgREST expressions. Computed relationships (row-returning functions used as embeds), view, self-referential, cross-schema, and partition-child relationships stay raw. Many-to-many queries can use explicit nested junction relationships; no direct shortcut is inferred.
 
 ## Verification example
 

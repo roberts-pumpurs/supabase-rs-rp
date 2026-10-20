@@ -2,6 +2,10 @@
 
 use serde::{Deserialize, Serialize, Serializer};
 
+mod json;
+
+pub use json::{NonNullJson, NullJson};
+
 /// A write field that distinguishes an absent key from an explicit value.
 /// Use `Field<Option<T>>` when the database permits an explicit JSON null.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

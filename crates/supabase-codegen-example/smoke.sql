@@ -14,6 +14,11 @@ CREATE TABLE public.messages (
 CREATE VIEW public.message_summaries AS SELECT id, body FROM public.messages;
 CREATE FUNCTION public.echo_message(message text) RETURNS text
 LANGUAGE sql IMMUTABLE AS $$ SELECT message $$;
+-- Single unnamed row-type arguments make computed fields, not RPCs.
+CREATE FUNCTION public.excerpt(public.messages) RETURNS text
+LANGUAGE sql STABLE AS $$ SELECT left($1.body, 12) $$;
+CREATE FUNCTION public.message_meta(public.messages) RETURNS jsonb
+LANGUAGE sql STABLE AS $$ SELECT jsonb_build_object('id', $1.id, 'tags', $1.tags) $$;
 CREATE TABLE public.countries (
     id bigint PRIMARY KEY,
     name text NOT NULL
@@ -65,29 +70,29 @@ CREATE TABLE public.composite_children (
     CONSTRAINT composite_parent FOREIGN KEY (parent_id, tenant_id)
         REFERENCES public.composite_parents(id, tenant_id)
 );
-CREATE TABLE public.skills (
-    id bigint PRIMARY KEY, name text NOT NULL, owner_id bigint NOT NULL, manifest jsonb NOT NULL
+CREATE TABLE public.articles (
+    id bigint PRIMARY KEY, name text NOT NULL, owner_id bigint NOT NULL, document jsonb NOT NULL
 );
-CREATE TABLE public.adapters (
-    id bigint PRIMARY KEY, name text NOT NULL, owner_id bigint NOT NULL, manifest jsonb NOT NULL
+CREATE TABLE public.videos (
+    id bigint PRIMARY KEY, name text NOT NULL, owner_id bigint NOT NULL, document jsonb NOT NULL
 );
-CREATE TABLE public.artifact_wrong_type (
-    id bigint PRIMARY KEY, name text NOT NULL, owner_id text NOT NULL, manifest jsonb NOT NULL
+CREATE TABLE public.content_wrong_type (
+    id bigint PRIMARY KEY, name text NOT NULL, owner_id text NOT NULL, document jsonb NOT NULL
 );
-CREATE TABLE public.artifact_wrong_key (
-    id bigint PRIMARY KEY, name text NOT NULL, "owner.id" bigint NOT NULL, manifest jsonb NOT NULL
+CREATE TABLE public.content_wrong_key (
+    id bigint PRIMARY KEY, name text NOT NULL, "owner.id" bigint NOT NULL, document jsonb NOT NULL
 );
-CREATE TABLE public.artifact_missing (
-    id bigint PRIMARY KEY, name text NOT NULL, manifest jsonb NOT NULL
+CREATE TABLE public.content_missing (
+    id bigint PRIMARY KEY, name text NOT NULL, document jsonb NOT NULL
 );
-CREATE TABLE public.artifact_links (
-    id bigint PRIMARY KEY, skill_id bigint NOT NULL, adapter_id bigint NOT NULL,
-    CONSTRAINT links_skill FOREIGN KEY (skill_id) REFERENCES public.skills(id),
-    CONSTRAINT links_adapter FOREIGN KEY (adapter_id) REFERENCES public.adapters(id)
+CREATE TABLE public.content_links (
+    id bigint PRIMARY KEY, article_id bigint NOT NULL, video_id bigint NOT NULL,
+    CONSTRAINT links_article FOREIGN KEY (article_id) REFERENCES public.articles(id),
+    CONSTRAINT links_video FOREIGN KEY (video_id) REFERENCES public.videos(id)
 );
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.artifact_links TO PUBLIC;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.skills, public.adapters,
-    public.artifact_wrong_type, public.artifact_wrong_key, public.artifact_missing TO PUBLIC;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.content_links TO PUBLIC;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.articles, public.videos,
+    public.content_wrong_type, public.content_wrong_key, public.content_missing TO PUBLIC;
 -- These grants are for a disposable smoke database only, not a production policy.
 GRANT USAGE ON SCHEMA public TO PUBLIC;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.messages TO PUBLIC;

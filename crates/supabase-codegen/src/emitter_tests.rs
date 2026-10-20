@@ -44,6 +44,7 @@ fn normalized_name_collisions_and_unknown_attribute_targets_fail() {
         unique_keys: vec![],
         foreign_keys: vec![],
         is_partition: false,
+        computed_fields: vec![],
     });
     let generator = crate::Generator::new();
     assert!(matches!(
@@ -54,6 +55,21 @@ fn normalized_name_collisions_and_unknown_attribute_targets_fail() {
     let generator = generator.type_attribute("public.tables.missing.Insert", "#[allow(dead_code)]");
     assert!(matches!(
         generator.from_metadata(metadata),
+        Err(Error::Invalid(_))
+    ));
+}
+
+#[test]
+fn computed_fields_cannot_collide_with_columns() {
+    let mut metadata = snapshot();
+    let mut messages = table("messages");
+    messages.computed_fields.push(ComputedField {
+        name: "id".into(),
+        ty: PgType::Builtin("text".into()),
+    });
+    metadata.schemas[0].tables.push(messages);
+    assert!(matches!(
+        crate::Generator::new().from_metadata(metadata),
         Err(Error::Invalid(_))
     ));
 }
@@ -70,6 +86,7 @@ fn output_is_stable_across_metadata_object_order() {
             unique_keys: vec![],
             foreign_keys: vec![],
             is_partition: false,
+            computed_fields: vec![],
         });
     }
     let generator = crate::Generator::new();
@@ -97,6 +114,7 @@ fn unsupported_types_fail_without_a_mapping() {
         unique_keys: vec![],
         foreign_keys: vec![],
         is_partition: false,
+        computed_fields: vec![],
     });
     assert!(matches!(
         crate::Generator::new().from_metadata(metadata),
@@ -130,6 +148,7 @@ fn table(name: &str) -> Table {
         unique_keys: vec![],
         foreign_keys: vec![],
         is_partition: false,
+        computed_fields: vec![],
     }
 }
 
@@ -367,11 +386,11 @@ fn not_null_customization_persists_and_rejects_unknown_fields() {
 #[test]
 fn column_overrides_validate_sql_targets_and_rust_types() {
     let mut metadata = snapshot();
-    metadata.schemas[0].tables.push(table("adapters"));
+    metadata.schemas[0].tables.push(table("videos"));
     for (target, ty) in [
-        ("public.adapters.missing", "String"),
+        ("public.videos.missing", "String"),
         ("public.missing.id", "String"),
-        ("public.adapters.id", "Vec<"),
+        ("public.videos.id", "Vec<"),
     ] {
         crate::Generator::new()
             .column_type(target, ty)

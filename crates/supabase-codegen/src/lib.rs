@@ -472,9 +472,16 @@ mod metadata_tests {
             "primary_key": null,
             "unique_keys": [],
             "foreign_keys": [],
-            "is_partition": false
+            "is_partition": false,
+            "computed_fields": []
         });
-        for field in ["primary_key", "unique_keys", "foreign_keys", "is_partition"] {
+        for field in [
+            "primary_key",
+            "unique_keys",
+            "foreign_keys",
+            "is_partition",
+            "computed_fields",
+        ] {
             let mut incomplete = table.clone();
             incomplete.as_object_mut().expect("object").remove(field);
             assert!(matches!(

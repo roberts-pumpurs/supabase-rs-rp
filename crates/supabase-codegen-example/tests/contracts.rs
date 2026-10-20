@@ -327,80 +327,107 @@ async fn typed_rpc_rejects_wrong_composite_set_and_void_shapes() {
 #[test]
 fn check_enum_and_external_override_share_write_and_filter_contracts() {
     use bindings::{
-        OwnerType,
-        public::{enums::CheckProbeOwnerType, tables::check_probe},
+        AuthorKind,
+        public::{enums::CheckProbeAuthorKind, tables::check_probe},
     };
     use rp_supabase_client::schema::{Column, Field, params};
     let row: check_probe::Row =
-        serde_json::from_str(r#"{"owner_type":"organization","external_owner":"user"}"#).unwrap();
-    let owner: <check_probe::columns::owner_type as Column>::Filter = row.owner_type;
-    let external: <check_probe::columns::external_owner as Column>::Value = row.external_owner;
+        serde_json::from_str(r#"{"author_kind":"organization","external_author":"user"}"#).unwrap();
+    let owner: <check_probe::columns::author_kind as Column>::Filter = row.author_kind;
+    let external: <check_probe::columns::external_author as Column>::Value = row.external_author;
     assert_eq!(owner.to_string(), "organization");
-    assert_eq!(external, Some(OwnerType::User));
+    assert_eq!(external, Some(AuthorKind::User));
     assert_eq!(
-        params::eq(check_probe::columns::owner_type, &owner).1,
+        params::eq(check_probe::columns::author_kind, &owner).1,
         "eq.organization"
     );
     let insert = check_probe::Insert {
-        owner_type: CheckProbeOwnerType::User,
-        external_owner: Field::Value(None),
+        author_kind: CheckProbeAuthorKind::User,
+        external_author: Field::Value(None),
     };
     assert_eq!(
         serde_json::to_value(insert).unwrap(),
-        serde_json::json!({"owner_type":"user","external_owner":null})
+        serde_json::json!({"author_kind":"user","external_author":null})
     );
     let update = check_probe::Update {
-        owner_type: Field::Value(CheckProbeOwnerType::Organization),
-        external_owner: Field::Value(Some(OwnerType::User)),
+        author_kind: Field::Value(CheckProbeAuthorKind::Organization),
+        external_author: Field::Value(Some(AuthorKind::User)),
     };
     assert_eq!(
         serde_json::to_value(update).unwrap(),
-        serde_json::json!({"owner_type":"organization","external_owner":"user"})
+        serde_json::json!({"author_kind":"organization","external_author":"user"})
     );
 }
 
 #[test]
 fn typed_json_preserves_sql_null_array_set_and_argument_contracts() {
     use bindings::{
-        InviteOutcome,
+        Outcome,
         public::{
             composites::JsonInfo,
-            functions::{invite_outcome, invite_records},
+            functions::{fetch_outcome, outcome_records},
             tables::json_probe,
         },
     };
     use rp_supabase_client::schema::{Array, Column, Field};
-    let row: json_probe::Row =
-        serde_json::from_str(r#"{"manifest":null,"manifests":[{"ok":true},null]}"#).unwrap();
-    let manifest: <json_probe::columns::manifest as Column>::Value = row.manifest;
-    assert_eq!(manifest, None);
+    let row: json_probe::Row = serde_json::from_str(
+        r#"{"document":null,"documents":[{"ok":true},null],"extra":null,"notes":null}"#,
+    )
+    .unwrap();
+    let document: <json_probe::columns::document as Column>::Value = row.document;
+    assert_eq!(document, None);
     assert_eq!(
-        row.manifests,
-        Array::Elements(vec![Some(InviteOutcome { ok: true }), None])
+        row.documents,
+        Array::Elements(vec![Some(Outcome { ok: true }), None])
     );
-    let outcome: invite_outcome::Returns = serde_json::from_str(r#"{"ok":true}"#).unwrap();
-    assert_eq!(outcome, Some(InviteOutcome { ok: true }));
-    let records: invite_records::Returns =
+    let outcome: fetch_outcome::Returns = serde_json::from_str(r#"{"ok":true}"#).unwrap();
+    assert_eq!(outcome, Some(Outcome { ok: true }));
+    let records: outcome_records::Returns =
         serde_json::from_str(r#"[{"data":{"ok":true}}]"#).unwrap();
     assert!(records[0].data.ok);
     let composite: JsonInfo = serde_json::from_str(r#"{"data":{"ok":true}}"#).unwrap();
     assert!(composite.data.ok);
     assert_eq!(
-        serde_json::to_value(invite_outcome::Args {
-            audience: Some(InviteOutcome { ok: false })
+        serde_json::to_value(fetch_outcome::Args {
+            audience: Some(Outcome { ok: false })
         })
         .unwrap(),
         serde_json::json!({"audience":{"ok":false}})
     );
     let update = json_probe::Update {
-        manifest: Field::Value(Some(InviteOutcome { ok: true })),
-        manifests: Field::Omit,
+        document: Field::Value(Some(Outcome { ok: true })),
+        ..Default::default()
     };
     assert_eq!(
         serde_json::to_value(update).unwrap(),
-        serde_json::json!({"manifest":{"ok":true}})
+        serde_json::json!({"document":{"ok":true}})
     );
-    assert!(serde_json::from_str::<invite_outcome::Returns>(r#"{"ok":"not a boolean"}"#).is_err());
+    assert!(serde_json::from_str::<fetch_outcome::Returns>(r#"{"ok":"not a boolean"}"#).is_err());
+}
+
+#[test]
+fn non_null_json_write_field_serializes_as_the_wrapped_value() {
+    use rp_supabase_client::schema::{Array, Field, NonNullJson};
+    use tables::json_probe;
+    let extra = NonNullJson::try_from(serde_json::json!({"k": [1, null]})).unwrap();
+    let insert = json_probe::Insert {
+        document: Field::Omit,
+        documents: Array::Elements(vec![]),
+        extra: extra.clone(),
+        notes: Field::Value(None),
+    };
+    assert_eq!(
+        serde_json::to_value(insert).unwrap(),
+        serde_json::json!({"documents":[],"extra":{"k":[1,null]},"notes":null})
+    );
+    let update = json_probe::Update {
+        extra: Field::Value(extra),
+        ..Default::default()
+    };
+    assert_eq!(
+        serde_json::to_value(update).unwrap(),
+        serde_json::json!({"extra":{"k":[1,null]}})
+    );
 }
 
 #[test]
@@ -433,13 +460,13 @@ fn relationship_aliases_keep_marker_identity_and_wire_hints() {
 
 #[test]
 fn strict_inputs_preserve_nullable_opt_out_default_omission_and_custom_types() {
-    use bindings::{InviteOutcome, public::functions::strict_probe::Args};
+    use bindings::{Outcome, public::functions::strict_probe::Args};
     use rp_supabase_client::schema::Field;
     let args = Args {
         label: "required".into(),
         version: None,
-        manifest: Field::Omit,
-        payload: InviteOutcome { ok: true },
+        document: Field::Omit,
+        payload: Outcome { ok: true },
     };
     assert_eq!(
         serde_json::to_value(args).unwrap(),
@@ -448,21 +475,21 @@ fn strict_inputs_preserve_nullable_opt_out_default_omission_and_custom_types() {
     let args = Args {
         label: "required".into(),
         version: Some(3),
-        manifest: Field::Value(None),
-        payload: InviteOutcome { ok: false },
+        document: Field::Value(None),
+        payload: Outcome { ok: false },
     };
     assert_eq!(
         serde_json::to_value(args).unwrap(),
-        serde_json::json!({"label":"required","version":3,"manifest":null,"payload":{"ok":false}})
+        serde_json::json!({"label":"required","version":3,"document":null,"payload":{"ok":false}})
     );
     let args = Args {
         label: "required".into(),
         version: None,
-        manifest: Field::Value(Some(InviteOutcome { ok: true })),
-        payload: InviteOutcome { ok: true },
+        document: Field::Value(Some(Outcome { ok: true })),
+        payload: Outcome { ok: true },
     };
     assert_eq!(
-        serde_json::to_value(args).unwrap()["manifest"],
+        serde_json::to_value(args).unwrap()["document"],
         serde_json::json!({"ok":true})
     );
 }

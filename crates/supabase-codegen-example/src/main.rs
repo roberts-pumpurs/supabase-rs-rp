@@ -5,7 +5,7 @@
 //! come only from SUPABASE_CODEGEN_API_KEY and SUPABASE_CODEGEN_ACCESS_TOKEN.
 
 use rp_supabase_client::rp_postgrest::Postgrest;
-use rp_supabase_client::schema::{Array, Field, Selection, rpc};
+use rp_supabase_client::schema::{Array, Field, Projection, Selection, rpc};
 use serde_json::json;
 
 rp_supabase_client::include_schema!("database.rs");
@@ -29,7 +29,11 @@ fn insert(body: &str) -> Insert {
             serde_json::from_str("123456789012345678901234567890.123456789")
                 .expect("valid numeric fixture"),
         ))
-        .metadata(Field::Value(json!({"source": "codegen-example"})))
+        .metadata(Field::Value(
+            json!({"source": "codegen-example"})
+                .try_into()
+                .expect("non-null metadata"),
+        ))
         .tags(Field::Value(Array::Elements(vec![
             Some("generated".into()),
             None,
@@ -57,6 +61,13 @@ fn offline() -> Result<(), Box<dyn std::error::Error>> {
         "Offline generated bindings: {}",
         serde_json::to_string(&request)?
     );
+    fn rendered<S: Selection>(_: S) -> String {
+        <S::Record as Projection<S::Relation>>::selection().into_owned()
+    }
+    // Computed fields are sent only when selected; PostgREST omits them from `*`.
+    let computed = rendered(select!(Root => { id, excerpt, message_meta }));
+    assert_eq!(computed, "id,excerpt,message_meta");
+    assert_eq!(<Root as Projection<Root>>::selection(), "*");
     relationship_projections::offline()?;
     Ok(())
 }
@@ -110,6 +121,24 @@ async fn live(client: Postgrest) -> Result<(), Box<dyn std::error::Error>> {
             .fetch()
             .await?;
         assert_eq!(echoed.as_deref(), Some("rpc example"));
+        let computed = select!(Root => { id, excerpt, message_meta })
+            .query(client.clone())
+            .eq(messages::columns::excerpt, "live example")
+            .order(
+                messages::columns::excerpt,
+                rp_supabase_client::schema::Order::Desc,
+            )
+            .fetch()
+            .await?;
+        let row = computed
+            .iter()
+            .find(|row| row.id == id)
+            .ok_or("computed field filter missed row")?;
+        assert_eq!(row.excerpt.as_deref(), Some("live example"));
+        assert_eq!(
+            row.message_meta.as_ref().map(|meta| &meta["id"]),
+            Some(&json!(id))
+        );
         Ok::<(), Box<dyn std::error::Error>>(())
     }
     .await;

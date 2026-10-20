@@ -12,8 +12,8 @@ use postgres_native_tls::MakeTlsConnector;
 
 use crate::Error;
 use crate::model::{
-    Argument, Column, Composite, Enum, ForeignKey, Function, Identity, PgType, RelationRef,
-    ReturnType, SNAPSHOT_VERSION, Schema, Snapshot, Table, TableKind,
+    Argument, Column, Composite, ComputedField, Enum, ForeignKey, Function, Identity, PgType,
+    RelationRef, ReturnType, SNAPSHOT_VERSION, Schema, Snapshot, Table, TableKind,
 };
 
 const CATALOG: &str = include_str!("catalog.sql");
@@ -370,6 +370,49 @@ fn load_catalog(tx: &mut Transaction<'_>, schemas: &[String]) -> Result<Catalog,
     Ok(catalog)
 }
 
+// PostgREST resolves `relation.name` field notation to a function on the row type. Attach the
+// supported subset: one input of a same-schema relation's row type and a single non-record,
+// non-pseudotype result. `void` is excluded too: a row field renders it as `""`, not unit.
+// A physical column with the same name shadows the function, so it is skipped.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "The caller already decoded these function facts from one catalog row."
+)]
+fn attach_computed_field(
+    catalog: &mut Catalog,
+    relations: &BTreeMap<i64, (String, usize)>,
+    schema: &str,
+    name: String,
+    inputs: &[(String, i64, bool)],
+    has_outputs: bool,
+    returns_set: bool,
+    return_oid: i64,
+) -> Result<(), Error> {
+    let [(_, input, _)] = inputs else {
+        return Ok(());
+    };
+    let relation = relations
+        .get(&catalog.info(*input)?.relation)
+        .filter(|(relation_schema, _)| relation_schema == schema)
+        .map(|&(_, index)| index);
+    let Some(index) = relation else {
+        return Ok(());
+    };
+    if returns_set || has_outputs || catalog.info(return_oid)?.kind == "p" {
+        return Ok(());
+    }
+    let ty = catalog.resolve(return_oid, &mut BTreeSet::new())?;
+    let table = catalog
+        .schema(schema)
+        .tables
+        .get_mut(index)
+        .ok_or_else(|| database_error("computed field relation"))?;
+    if !table.columns.iter().any(|column| column.name == name) {
+        table.computed_fields.push(ComputedField { name, ty });
+    }
+    Ok(())
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "Catalog extraction remains one ordered read-only transaction over related metadata."
@@ -412,6 +455,8 @@ pub fn introspect(url: &str, schemas: &[String]) -> Result<Snapshot, Error> {
         .filter(|row| matches!(row.get::<_, &str>("kind"), "r" | "p" | "f"))
         .map(|row| row.get("oid"))
         .collect();
+    // Relation OID to its schema and position, for attaching computed fields.
+    let mut relations: BTreeMap<i64, (String, usize)> = BTreeMap::new();
     for row in relation_rows {
         let schema: String = row.get("schema");
         let kind = match row.get::<_, &str>("kind") {
@@ -487,7 +532,9 @@ pub fn introspect(url: &str, schemas: &[String]) -> Result<Snapshot, Error> {
                 };
             }
         }
-        catalog.schema(&schema).tables.push(Table {
+        let tables = &mut catalog.schema(&schema).tables;
+        relations.insert(row.get("oid"), (schema.clone(), tables.len()));
+        tables.push(Table {
             name: row.get("name"),
             kind,
             columns,
@@ -495,6 +542,7 @@ pub fn introspect(url: &str, schemas: &[String]) -> Result<Snapshot, Error> {
             unique_keys,
             foreign_keys,
             is_partition: row.get("is_partition"),
+            computed_fields: Vec::new(),
         });
     }
     for row in query(&mut tx, "functions", Some(schemas))? {
@@ -545,6 +593,17 @@ pub fn introspect(url: &str, schemas: &[String]) -> Result<Snapshot, Error> {
                 eligible = false;
             }
         }
+        let schema: String = row.get("schema");
+        attach_computed_field(
+            &mut catalog,
+            &relations,
+            &schema,
+            row.get("name"),
+            &inputs,
+            !outputs.is_empty(),
+            row.get("returns_set"),
+            return_oid,
+        )?;
         if !eligible {
             continue;
         }
@@ -596,7 +655,6 @@ pub fn introspect(url: &str, schemas: &[String]) -> Result<Snapshot, Error> {
                 ));
             }
         }
-        let schema: String = row.get("schema");
         catalog.schema(&schema).functions.push(Function {
             name: row.get("name"),
             arguments,

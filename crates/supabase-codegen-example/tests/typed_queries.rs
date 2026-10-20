@@ -13,6 +13,10 @@ rp_supabase_client::projection! {
 rp_supabase_client::projection! {
     struct Identity for bindings::public::tables::typed_probe { id }
 }
+rp_supabase_client::projection! {
+    #[derive(Debug, PartialEq)]
+    struct Labelled for bindings::public::tables::column_view { value, label }
+}
 
 #[test]
 fn projection_requires_selected_fields_and_preserves_exact_json_names() {
@@ -219,6 +223,74 @@ async fn reserved_text_filter_preserves_literal_value() {
         .unwrap();
     assert_eq!(rows[0].id, 7);
     request.assert_async().await;
+}
+
+#[tokio::test]
+async fn computed_fields_are_selectable_filterable_and_orderable_but_not_default() {
+    use bindings::{
+        Outcome,
+        public::tables::{column_view, json_probe},
+    };
+    use rp_supabase_client::{
+        schema::{Order, Selection},
+        select,
+    };
+    let mut server = mockito::Server::new_async().await;
+    let client = Postgrest::new(server.url()).unwrap();
+    let selected = server
+        .mock("GET", "/json_probe")
+        .match_query(mockito::Matcher::AllOf(vec![
+            mockito::Matcher::UrlEncoded("select".into(), "summary,outcome".into()),
+            mockito::Matcher::UrlEncoded("summary".into(), "eq.hello".into()),
+            mockito::Matcher::UrlEncoded("order".into(), "summary.desc".into()),
+        ]))
+        .with_body(r#"[{"summary":"hello","outcome":{"ok":true}},{"summary":null,"outcome":null}]"#)
+        .create_async()
+        .await;
+    let rows = select!(json_probe::Row => { summary, outcome })
+        .query(client.clone())
+        .eq(json_probe::columns::summary, "hello")
+        .order(json_probe::columns::summary, Order::Desc)
+        .fetch()
+        .await
+        .unwrap();
+    assert_eq!(rows[0].summary.as_deref(), Some("hello"));
+    assert_eq!(rows[0].outcome, Some(Outcome { ok: true }));
+    assert_eq!((&rows[1].summary, &rows[1].outcome), (&None, &None));
+    selected.assert_async().await;
+
+    let view = server
+        .mock("GET", "/column_view")
+        .match_query(mockito::Matcher::UrlEncoded(
+            "select".into(),
+            "value,label".into(),
+        ))
+        .with_body(r#"[{"value":1,"label":"one"}]"#)
+        .create_async()
+        .await;
+    let rows = column_view::query(client.clone())
+        .select(rp_supabase_client::schema::named::<_, Labelled>())
+        .fetch()
+        .await
+        .unwrap();
+    assert_eq!(
+        rows,
+        vec![Labelled {
+            value: Some(1),
+            label: Some("one".into())
+        }]
+    );
+    view.assert_async().await;
+
+    let default = server
+        .mock("GET", "/column_view")
+        .match_query(mockito::Matcher::UrlEncoded("select".into(), "*".into()))
+        .with_body(r#"[{"value":2}]"#)
+        .create_async()
+        .await;
+    let rows = column_view::query(client).fetch().await.unwrap();
+    assert_eq!(rows[0].value, Some(2));
+    default.assert_async().await;
 }
 
 #[tokio::test]
