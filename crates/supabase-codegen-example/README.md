@@ -1,88 +1,59 @@
 # Schema bindings example
 
-`build.rs` generates bindings from `schema.json` by default. It adds a prelude type alias, a text mapping, `PartialEq`, and a targeted `TypedBuilder` derive. `src/main.rs` includes the output with `include_schema!`.
+This crate shows the typed query workflow end to end. `build.rs` reads the committed schema snapshot, `schema.json`, and generates Rust types for its tables, columns, relationships, and functions. `src/main.rs` includes them with `include_schema!` and queries with `select!`. The selected fields define each result type, so the example has no hand-written response structs.
 
-This example uses codegen and client 0.9 with the owned `rp-postgrest` 3.0 runtime.
-Regenerate Rust bindings when upgrading. The generator emits schema-qualified finite field and FK lookups.
-The committed format 3 snapshot supports offline builds. Regenerate older snapshots with the standalone codegen CLI.
+## Run it without a database
 
-Run without a database:
+From the repository root:
 
 ```sh
-cargo run -p rp-supabase-codegen-example --offline
+cargo run -p rp-supabase-codegen-example
 ```
 
-Cargo's offline flag requires cached dependencies. The executable checks omitted identity/default
-fields, explicit null, query-first decoding, exact numeric values, and nested relationship shapes.
+Add `--offline` if Cargo already has the dependencies cached.
 
-The executable uses `select!` with a function-local row import instead of a local `Message` DTO.
-Typed column markers check filters. Generated payloads check insert and update fields.
-`fetch()` infers the selected response type and checks HTTP errors before decoding JSON.
+Without live settings, the program generates bindings from the snapshot, builds an insert payload, and decodes a fixture JSON response into a `select!` result. It makes no network requests.
 
-`src/relationship_projections.rs` contains mixed scalar, nested, inner, and predicate-only projections.
-Relationship handles check child columns and selected projection ownership.
-Compiler consumers cover local and generic selections, renamed runtime paths, identifier hygiene, strict nullable/duplicate keys, wrong edges/children/owners, inner and empty embeds, locked reselection, shared DTO contracts, and paged-read mutation rejection.
+To see the compiler check your queries, edit the `select!` call in `offline()` in `src/main.rs`. Remove `amount`, rebuild, and the line that reads `row.amount` no longer compiles.
 
-`src/gaps.rs` defines one `Content` DTO for both generated `articles` and `videos` relations.
-Its permanent live scenario covers typed ordering, borrowed IN values with commas/quotes/backslashes,
-JSON text paths, inclusive pagination, server counts, minimal writes, and raw `Vec<Content>` decoding.
-It also renders `schema::params` pairs without constructing a typed query and feeds them to the
-owned builder. An application can pass those unencoded pairs to its own HTTP query serializer.
-JSON/JSONB markers implement `JsonColumn`; unrelated columns do not.
+## What to read
 
-Typed RPC `.fetch()` infers the generated return type and returns the canonical owned REST error.
-HTTP 204 supports unit-valued void RPCs, not arbitrary empty-body JSON results. Consumer response
-tests cover this contract; the live executable calls `echo_message`, not a void function.
-The example retains numeric values as arbitrary-precision `serde_json::Number`, without an `f64` conversion.
+- `src/main.rs`: `select!`, typed filters, insert and update payloads, a view, a computed field, and a typed RPC call.
+- `src/relationship_projections.rs`: selections that include related rows through foreign keys.
+- `src/gaps.rs`: one shared struct, defined with `projection!`, read from two tables (`articles` and `videos`).
+- `build.rs`: generator settings, including a prelude type alias, a text type mapping, and an extra derive on one generated struct.
 
+A few details the example relies on:
 
-Run consumer behavior and compiler rejection checks:
+- Generated write payloads separate "omit this field" from "send null". Insert and update payloads reject a JSON `null` for `NOT NULL` json or jsonb columns before the request goes out. Build one with `json!(...).try_into()`.
+- Numeric columns keep their full precision through `serde_json`'s `arbitrary_precision` feature.
+- `fetch()` infers the result type from the selection or the generated function, and checks the HTTP status before it decodes JSON.
+
+## Tests
 
 ```sh
-cargo test -p rp-supabase-codegen-example --offline
+cargo test -p rp-supabase-codegen-example
 ```
+
+The tests decode fixture responses and run compiler checks. `tests/compile_fail.rs` holds code that must not build, such as an unknown column, a filter value of the wrong type, or a relationship used from the wrong table.
 
 ## Live scenario
 
-Apply `smoke.sql` to a disposable PostgreSQL database. It creates message, relationship, `articles`,
-`videos`, and `content_links` fixtures, plus deliberately mismatched content tables for compiler
-contracts. The `excerpt` and `message_meta` functions take an unnamed `messages` row, so they become
-computed fields on `messages` rather than RPCs.
-It grants access for verification. Do not apply it to the repository's existing Supabase
-database or a production project.
+The live scenario reads and writes through a real PostgREST server. Use a throwaway database. `smoke.sql` grants access to `PUBLIC` and defines no row-level security policies, so do not apply it to this repository's Supabase database or to a production project.
 
-Expose `public` through PostgREST. Set these environment variables:
+1. Apply `smoke.sql` to a disposable PostgreSQL database. It creates the tables, a view, and the functions the scenario uses.
+2. Expose the `public` schema through PostgREST.
+3. Set these environment variables:
+   - `SUPABASE_CODEGEN_DATABASE_URL`: a database connection string, used only by `build.rs`. Use verified TLS for a remote database. Add `sslmode=disable` for a trusted local one.
+   - `SUPABASE_CODEGEN_API_URL`: the PostgREST base URL. For Supabase, use `https://PROJECT.supabase.co/rest/v1`.
+   - `SUPABASE_CODEGEN_API_KEY`: optional Supabase API key.
+   - `SUPABASE_CODEGEN_ACCESS_TOKEN`: optional bearer access token.
+4. Run `cargo run -p rp-supabase-codegen-example`.
 
-- `SUPABASE_CODEGEN_DATABASE_URL`, a database connection string used only by `build.rs`. Use verified TLS remotely. Add `sslmode=disable` for a trusted local database.
-- `SUPABASE_CODEGEN_API_URL`, the PostgREST base URL. Use `https://PROJECT.supabase.co/rest/v1` for Supabase.
-- `SUPABASE_CODEGEN_API_KEY`, optional Supabase API key.
-- `SUPABASE_CODEGEN_ACCESS_TOKEN`, optional bearer access token.
+The program inserts a message, reads it back with a typed filter, updates it, reads a view, calls an RPC, and deletes the row. It also checks relationship queries, reads the shared struct from both tables, and selects, filters, and orders by a computed field. It removes the rows it created, also after most errors. A panic or the 30-second timeout can leave rows behind.
 
-Then run `cargo run -p rp-supabase-codegen-example`. Live introspection never falls back to the snapshot after an error.
-The executable first checks direct and reverse FK relationships, billing/shipping ambiguity,
-PK/UNIQUE reverse to-one shapes, ordered composite FKs, nested filters, and empty-embed existence predicates.
-It compares left and inner behavior. Run-specific cleanup removes relationship fixtures after recoverable errors.
-Projected insert, update, and delete also run after scoped child filters lock the selection.
+The scenario does not test your row-level security. Policies and permissions can change which rows and related rows a query returns. The live check last ran on Rust 1.85, PostgreSQL 17, and PostgREST 16.2.
 
-`gaps::live` runs next. It inserts run-specific articles and videos with minimal return, reads the
-same shared DTO through both relations, checks exact counts and parameter rendering, and attempts
-both cleanup deletes even after a recoverable scenario error. The article cleanup checks its affected
-row count; the video cleanup requests minimal return.
+## Schema changes
 
-It then inserts a projected message, reads it with a typed filter, updates its nullable field,
-reads the view, calls the RPC, and deletes the row. It checks numeric precision through typed fetches.
-It also selects, filters, and orders by the `excerpt` computed field. Computed fields are sent only
-when selected, since PostgREST leaves them out of `*`.
-
-Write payloads use `NonNullJson` for NOT NULL `json`/`jsonb` columns such as `metadata` and
-`document`, so a JSON null is rejected before the request. Build one with `json!(...).try_into()`.
-
-The scenario uses a 30-second timeout. A panic or timeout can leave inserted rows. Use a disposable database.
-
-The fixtures grant access to `PUBLIC` and do not define production RLS policies. The scenario
-requires visibility and write access to its inserted rows. It does not prove application RLS
-correctness; RLS or permissions can change embed visibility and counts.
-Live acceptance ran on Rust 1.85 with PostgreSQL 17 and PostgREST 16.2. Offline decoding and
-HTTP-fixture tests are separate checks and are not evidence of a live server run.
-
-Remote DDL does not trigger Cargo change detection. Change the tracked database environment variable, or register your migrations in `build.rs`, to request another introspection. Remove the database variable to return to the committed snapshot.
+With `SUPABASE_CODEGEN_DATABASE_URL` set, `build.rs` reads the live schema. If that fails, the build fails. It never falls back to the snapshot. Cargo does not notice schema changes on a remote database, so change the tracked environment variable, or register your migrations in `build.rs`, to generate again. Unset the variable to go back to the committed snapshot.

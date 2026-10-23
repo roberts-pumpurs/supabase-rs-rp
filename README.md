@@ -82,7 +82,7 @@ Enable the `typed` feature of `supabase-rp` to get the `rp-supabase-client` sche
 | Supabase service | Supported | Limits |
 |------------------|-----------|--------|
 | Database (PostgREST) | Queries, filters, ordering, pagination, counts, inserts, updates, upserts, deletes, RPC | No GraphQL. |
-| Auth | Password, OTP, sign up, refresh, user update, sign out. Request types for MFA and admin endpoints. | No session storage. No convenience methods for OAuth redirects or PKCE code exchange. |
+| Auth | Password, OTP, sign up, refresh, PKCE code exchange, user update, sign out. Request types for MFA and admin endpoints. | No session storage. OAuth redirects need your own redirect handling. |
 | Realtime | Database changes (also typed), broadcast, presence | The websocket does not reconnect; the stream ends when the server closes it. One channel topic per connection. Sign in with email or phone and password only. |
 | Storage | Bucket CRUD, object upload, download, move, copy, remove, list, signed and public URLs | No resumable (TUS) uploads. No image transformations. No S3 protocol. |
 | Edge Functions | Invoke with JSON or raw bodies, custom headers and methods | No streamed request bodies. No multipart helpers. |
