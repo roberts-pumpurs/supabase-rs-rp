@@ -11,12 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- *(client)* select! names an unknown column at the column ([#39](https://github.com/roberts-pumpurs/supabase-rs-rp/pull/39))
-
-### Fixed
-
-- `select!` resolves each column and relationship through a unit struct named after the written identifier, located at that identifier. An unknown name is one error at the name, in words.
+- `select!` resolves each column and relationship through a unit struct named after the written identifier, located at that identifier. An unknown name is one error at the name, in words. ([#39](https://github.com/roberts-pumpurs/supabase-rs-rp/pull/39))
 - `projection!` shared filter key methods name the filter when used with a relation outside the shared list.
+
+### Other
+
+- syn moves to 3.
 
 ## [0.11.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-client-macros-v0.10.0...rp-supabase-client-macros-v0.11.0) - 2026-10-08
 
