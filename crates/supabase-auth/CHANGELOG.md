@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.1](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-auth-v0.10.0...rp-supabase-auth-v0.10.1) - 2026-10-23
+
+### Other
+
+- update Cargo.toml dependencies
+
 ## [0.10.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-auth-v0.9.1...rp-supabase-auth-v0.10.0) - 2026-10-09
 
 ### Added

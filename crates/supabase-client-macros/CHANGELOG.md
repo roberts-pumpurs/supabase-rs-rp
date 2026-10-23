@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-client-macros-v0.13.0...rp-supabase-client-macros-v0.13.1) - 2026-10-23
+
+### Fixed
+
+- *(client)* select! names an unknown column at the column ([#39](https://github.com/roberts-pumpurs/supabase-rs-rp/pull/39))
+
 ### Fixed
 
 - `select!` resolves each column and relationship through a unit struct named after the written identifier, located at that identifier. An unknown name is one error at the name, in words.

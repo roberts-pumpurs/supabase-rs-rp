@@ -547,7 +547,7 @@ dependencies = [
 
 [[package]]
 name = "examples"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "color-eyre",
  "eyre",
@@ -2009,7 +2009,7 @@ dependencies = [
 
 [[package]]
 name = "rp-supabase-auth"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "chrono",
  "futures",
@@ -2032,7 +2032,7 @@ dependencies = [
 
 [[package]]
 name = "rp-supabase-client"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "futures",
  "mockito",
@@ -2048,7 +2048,7 @@ dependencies = [
 
 [[package]]
 name = "rp-supabase-client-macros"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2057,7 +2057,7 @@ dependencies = [
 
 [[package]]
 name = "rp-supabase-codegen"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "clap",
  "heck",
@@ -2076,7 +2076,7 @@ dependencies = [
 
 [[package]]
 name = "rp-supabase-codegen-example"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "chrono",
  "mockito",
@@ -2104,7 +2104,7 @@ dependencies = [
 
 [[package]]
 name = "rp-supabase-mock"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "base64 0.23.1",
  "jsonwebtoken",
@@ -2117,7 +2117,7 @@ dependencies = [
 
 [[package]]
 name = "rp-supabase-realtime"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "bytes",
  "fastwebsockets",
@@ -2144,7 +2144,7 @@ dependencies = [
 
 [[package]]
 name = "rp-supabase-storage"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "bytes",
  "chrono",
@@ -3614,7 +3614,7 @@ checksum = "32ac00cd3f8ec9c1d33fb3e7958a82df6989c42d747bd326c822b1d625283547"
 
 [[package]]
 name = "xtask"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "clap",
  "color-eyre",

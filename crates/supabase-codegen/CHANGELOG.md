@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.13.1](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-codegen-v0.13.0...rp-supabase-codegen-v0.13.1) - 2026-10-23
+
+### Fixed
+
+- *(client)* select! names an unknown column at the column ([#39](https://github.com/roberts-pumpurs/supabase-rs-rp/pull/39))
+
 ## [0.13.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-codegen-v0.12.0...rp-supabase-codegen-v0.13.0) - 2026-10-20
 
 ### Breaking

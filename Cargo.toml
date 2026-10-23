@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*", "xtask", "examples"]
 
 [workspace.package]
-version = "0.10.0"
+version = "0.10.1"
 authors = [
   "Roberts Pumpurs <roberts@pumpurlabs.com>",
 ]
@@ -88,7 +88,7 @@ rp-postgrest-error = { path = "crates/postgrest-error", version = "0.8" }
 rp-supabase-realtime = { path = "crates/supabase-realtime", version = "0.10" }
 rp-supabase-codegen = { path = "crates/supabase-codegen", version = "0.13" }
 rp-postgrest = { path = "crates/postgrest", version = "3.2" }
-rp-supabase-client-macros = { path = "crates/supabase-client-macros", version = "=0.13.0" }
+rp-supabase-client-macros = { path = "crates/supabase-client-macros", version = "=0.13.1" }
 
 # Async
 futures-concurrency = "7.7"
