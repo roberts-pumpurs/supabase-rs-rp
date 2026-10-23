@@ -15,10 +15,6 @@ struct MessageToTrack {
     random_number: u64,
 }
 
-#[expect(
-    clippy::unwrap_in_result,
-    reason = "Tokio's main macro expects runtime construction to succeed."
-)]
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
     tracing_subscriber::fmt()
