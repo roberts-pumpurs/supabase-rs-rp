@@ -284,10 +284,7 @@ pub fn expand(names: &Names, input: &Input) -> Tokens {
         .others
         .iter()
         .map(|next| shared_projection(input, next));
-    let filters = input
-        .filters
-        .iter()
-        .map(|filter| shared_filter(input, filter));
+    let filters = input.shared_filters(names);
     quote! {
         #(#attributes)*
         #visibility struct #name { #(pub #field_names: #public_types,)* }
@@ -310,9 +307,19 @@ impl Input {
             .iter()
             .filter_map(|field| field.public_type(&self.runtime, &self.first))
     }
+
+    fn shared_filters<'a>(&'a self, names: &'a Names) -> impl Iterator<Item = Tokens> + 'a {
+        self.filters
+            .iter()
+            .enumerate()
+            .map(|(index, filter)| shared_filter(names, self, index, filter))
+    }
 }
 
-fn shared_filter(input: &Input, filter: &Filter) -> Tokens {
+// Each filter key also gets a unit struct named after it, in a private module so that
+// it cannot shadow the user's paths. Diagnostics print that struct, so a relation that
+// is missing from the shared projection names the filter as a word, not an encoded key.
+fn shared_filter(names: &Names, input: &Input, index: usize, filter: &Filter) -> Tokens {
     let rt = &input.runtime;
     let name = &input.name;
     let first = &input.first;
@@ -320,6 +327,7 @@ fn shared_filter(input: &Input, filter: &Filter) -> Tokens {
     let text = key.unraw().to_string();
     let characters = text.chars();
     let key_type = quote!((#(#rt::schema::Character<#characters>,)*));
+    let key_module = names.ident(&format!("filter_key{index}"));
     let first_column = &filter.first_column;
     let relations = ::core::iter::once(first).chain(input.others.iter());
     let columns = ::core::iter::once(first_column).chain(filter.other_columns.iter());
@@ -333,9 +341,14 @@ fn shared_filter(input: &Input, filter: &Filter) -> Tokens {
     });
     quote! {
         #(#mappings)*
+        mod #key_module {
+            #[allow(non_camel_case_types)]
+            pub struct #key;
+            impl #rt::schema::KeyName for #key { type Key = #key_type; }
+        }
         impl #name {
             pub const fn #key<R: #rt::schema::Relation>() -> #rt::schema::SharedFilter<Self, #key_type, R>
-            where Self: #rt::schema::FilterColumn<#key_type, R> {
+            where Self: #rt::schema::SharedFilterFor<#key_module::#key, R> {
                 #rt::schema::SharedFilter::new()
             }
         }

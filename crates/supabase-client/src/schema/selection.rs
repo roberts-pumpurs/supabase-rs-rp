@@ -1,7 +1,7 @@
 //! Typed named and query-local selection descriptors and version-owned macro support.
 use super::{
-    Cardinality, Column, ColumnByKey, EmbedPath, Key, Path, Projection, Relation, Relationship,
-    RelationshipByKey,
+    Cardinality, Column, ColumnByKey, EmbedPath, Key, KeyName, Path, Projection, Relation,
+    Relationship, RelationshipByKey,
 };
 use core::marker::PhantomData;
 /// A copyable selected shape with an exact decoded record and relation.
@@ -141,16 +141,52 @@ impl<E: Relationship> EdgeToken<E> {
 }
 
 // These are the only schema-key lookup sites. Generated records never contain ColumnOf/EdgeOf.
+//
+// `select!` passes a block-local unit struct named after the identifier the user wrote.
+// rustc prints that type in the diagnostics below, so an unknown name appears as a word.
+// `do_not_recommend` stops rustc from reporting the encoded `ColumnByKey` key instead.
+/// Column lookup for `select!`. Implemented for every relation that resolves the key.
+#[doc(hidden)]
+#[diagnostic::on_unimplemented(
+    message = "no column `{Name}` on `{Self}`",
+    label = "unknown column",
+    note = "valid names are the items of the `columns` module next to `{Self}`"
+)]
+pub trait SelectedColumn<Name>: Relation {
+    /// Generated column marker.
+    type Column: Column<Relation = Self>;
+}
+#[diagnostic::do_not_recommend]
+impl<R: ColumnByKey<N::Key>, N: KeyName> SelectedColumn<N> for R {
+    type Column = R::Column;
+}
+/// Relationship lookup for `select!`. Implemented for every relation that resolves the key.
+#[doc(hidden)]
+#[diagnostic::on_unimplemented(
+    message = "no relationship `{Name}` on `{Self}`",
+    label = "unknown relationship",
+    note = "valid names are the items of the `relationships` module next to `{Self}`"
+)]
+pub trait SelectedRelationship<Name>: Relation {
+    /// Generated relationship marker.
+    type Edge: Relationship<Source = Self>;
+}
+#[diagnostic::do_not_recommend]
+impl<R: RelationshipByKey<N::Key>, N: KeyName> SelectedRelationship<N> for R {
+    type Edge = R::Edge;
+}
 /// Resolve or construct checked selection metadata.
+// The output is a separate parameter: a `R::Column` projection in the return type
+// would report a second, encoded copy of an unknown-column error.
 #[doc(hidden)]
 #[must_use]
-pub fn column<R: ColumnByKey<K>, K>(_: RelationToken<R>, _: Key<K>) -> Scalar<R::Column> {
+pub fn column<R: SelectedColumn<N, Column = C>, N, C>(_: RelationToken<R>, _: N) -> Scalar<C> {
     Scalar(PhantomData)
 }
 /// Resolve or construct checked selection metadata.
 #[doc(hidden)]
 #[must_use]
-pub fn edge<R: RelationshipByKey<K>, K>(_: RelationToken<R>, _: Key<K>) -> EdgeToken<R::Edge> {
+pub fn edge<R: SelectedRelationship<N, Edge = E>, N, E>(_: RelationToken<R>, _: N) -> EdgeToken<E> {
     EdgeToken(PhantomData)
 }
 /// Resolved selection metadata used by generated constructors.

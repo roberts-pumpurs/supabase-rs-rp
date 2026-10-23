@@ -14,6 +14,20 @@ pub trait FilterColumn<K, R: super::Relation> {
     type Column: super::Column<Relation = R>;
 }
 
+/// Shared filter lookup for `projection!` key methods. `Name` is a unit struct named after the key,
+/// so the diagnostic prints the key as a word. Implemented whenever `FilterColumn` resolves.
+#[doc(hidden)]
+#[diagnostic::on_unimplemented(
+    message = "shared filter `{Name}` of `{Self}` has no column on `{R}`",
+    label = "`{R}` is not a relation of `{Self}`"
+)]
+pub trait SharedFilterFor<Name, R: super::Relation> {}
+#[diagnostic::do_not_recommend]
+impl<P: FilterColumn<N::Key, R>, N: super::KeyName, R: super::Relation> SharedFilterFor<N, R>
+    for P
+{
+}
+
 /// A zero-sized shared filter key scoped to a projection and relation.
 #[expect(
     clippy::type_complexity,

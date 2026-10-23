@@ -69,7 +69,7 @@ pub trait Function {
 pub mod params;
 mod projection;
 pub use params::{Nulls, Order, QueryPair};
-pub use projection::{FilterColumn, SharedFilter};
+pub use projection::{FilterColumn, SharedFilter, SharedFilterFor};
 mod query;
 mod relationship;
 pub mod selection;
@@ -96,7 +96,19 @@ impl<Name> Default for Key<Name> {
         Self::new()
     }
 }
+/// The identifier a macro lookup was written with, and its schema key.
+/// Macros implement it for a unit struct named after the identifier, so that
+/// lookup diagnostics print the identifier as a word instead of the encoded key.
+#[doc(hidden)]
+pub trait KeyName {
+    /// The lossless key that `key!(type ...)` also produces.
+    type Key;
+}
 /// Resolve a normalized column identifier on this exact relation.
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` has no column for this key",
+    label = "unknown column"
+)]
 pub trait ColumnByKey<Name>: Relation {
     /// Generated column marker.
     type Column: Column<Relation = Self>;
@@ -104,6 +116,10 @@ pub trait ColumnByKey<Name>: Relation {
     const COLUMN: Self::Column;
 }
 /// Resolve a normalized relationship identifier on this exact relation.
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` has no relationship for this key",
+    label = "unknown relationship"
+)]
 pub trait RelationshipByKey<Name>: Relation {
     /// Generated relationship marker.
     type Edge: Relationship<Source = Self>;

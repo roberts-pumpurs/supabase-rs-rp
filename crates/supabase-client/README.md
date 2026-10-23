@@ -48,6 +48,20 @@ The FK determines each child relation. The result has ordinary named Rust fields
 
 Function-local imports, concrete aliases, and bounded generic root/DTO types work. `key!(type id)` supplies the lookup-name type for a generic `ColumnByKey` bound. Keys encode the complete Rust identifier without hashing. Lookup uses the exact generated row type, including its schema, and rendering retains the exact SQL name.
 
+An unknown column or relationship name is one compile error at that name. rustc prints the row type by its shortest unambiguous path:
+
+```text
+error[E0277]: no column `title` on `Row`
+  --> examples/error_unknown_column.rs:16:53
+   |
+16 |     let notes = select!(notes::Row => { owner_name, title })
+   |                                                     ^^^^^ unknown column
+   |
+   = note: valid names are the items of the `columns` module next to `Row`
+```
+
+A relationship typo reports ``no relationship `name` on `Row` `` the same way. If another item in the crate graph has the same name as the typo, rustc prefixes the name with the enclosing function, for example `main::title`.
+
 Use `billing: inner(orders_billing) { label }` for an inner embed. `matching: empty(orders_billing)` creates a predicate-only handle without a decoded field. Named child reuse uses `billing: embed(orders_billing, AddressSummary)`, optionally with `inner` as the third argument.
 
 For a renamed Cargo dependency, pass `runtime = renamed_client;` before the root type. Use the same prefix in `key!`. Generated bindings use `Generator::runtime_path("::renamed_client::schema")`.

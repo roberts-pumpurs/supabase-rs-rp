@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `select!` resolves each column and relationship through a unit struct named after the written identifier, located at that identifier. An unknown name is one error at the name, in words.
+- `projection!` shared filter key methods name the filter when used with a relation outside the shared list.
+
 ## [0.11.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-client-macros-v0.10.0...rp-supabase-client-macros-v0.11.0) - 2026-10-08
 
 ### Other
