@@ -34,7 +34,7 @@ struct Field {
 enum Kind {
     Scalar,
     Nested(Ident, Vec<Field>, bool),
-    Shared(Ident, Type, bool),
+    Shared(Ident, Box<Type>, bool),
     Empty(Ident, bool),
 }
 fn fields(input: ParseStream) -> syn::Result<Vec<Field>> {
@@ -83,7 +83,7 @@ fn fields(input: ParseStream) -> syn::Result<Vec<Field>> {
                         return Err(args.error("unexpected embed arguments"));
                     }
                     match dto {
-                        Some(dto) => Kind::Shared(key, dto, inner),
+                        Some(dto) => Kind::Shared(key, Box::new(dto), inner),
                         None => Kind::Empty(key, inner),
                     }
                 }
@@ -175,10 +175,11 @@ impl Names {
     }
 
     fn ident(&self, suffix: &str) -> Ident {
-        Ident::new(
-            &format!("{}{suffix}", self.prefix),
-            proc_macro2::Span::mixed_site(),
-        )
+        self.ident_at(suffix, proc_macro2::Span::mixed_site())
+    }
+
+    fn ident_at(&self, suffix: &str, span: proc_macro2::Span) -> Ident {
+        Ident::new(&format!("{}{suffix}", self.prefix), span)
     }
 }
 
@@ -267,13 +268,9 @@ fn node(names: &Names, rt: &Path, fields: &[Field], relation: &Tokens) -> Tokens
 
 fn field_value(names: &Names, rt: &Path, field: &EmissionField<'_>) -> Tokens {
     let edge_ident = names.ident("edge");
-    let relation_ident = names.ident("relation");
     let alias = &field.field.alias;
     match &field.field.kind {
-        Kind::Scalar => {
-            let key = key_type(rt, alias);
-            quote_spanned!(alias.span()=> #rt::schema::selection::column(#relation_ident, #rt::schema::Key::<#key>::new()))
-        }
+        Kind::Scalar => lookup(names, rt, "column", alias),
         Kind::Nested(edge, child, inner) => {
             let child = node(names, rt, child, &quote!(#edge_ident.target()));
             embedded_value(names, rt, field, edge, *inner, &child)
@@ -299,13 +296,11 @@ fn embedded_value(
 ) -> Tokens {
     let child_ident = names.ident("child");
     let edge_ident = names.ident("edge");
-    let relation_ident = names.ident("relation");
     let alias = &field.field.alias;
     let index = field.index;
     let alias_ty = names.ident(&format!("Alias{index}"));
     let alias_name = alias.unraw().to_string();
-    let key = key_type(rt, edge);
-    let lookup = quote_spanned!(edge.span()=> #rt::schema::selection::edge(#relation_ident, #rt::schema::Key::<#key>::new()));
+    let lookup = lookup(names, rt, "edge", edge);
     quote!({
         struct #alias_ty;
         impl #rt::schema::selection::Alias for #alias_ty { const NAME: &'static ::core::primitive::str = #alias_name; }
@@ -456,6 +451,32 @@ fn key_type(rt: &Path, name: &Ident) -> Tokens {
     let text = name.unraw().to_string();
     let characters = text.chars();
     quote!((#(#rt::schema::Character<#characters>,)*))
+}
+// Resolve `name` on the relation in scope with `selection::column` or `selection::edge`.
+// The argument is a block-local unit struct named after the identifier the user wrote:
+// lookup diagnostics print that type, so an unknown name appears as a word, not a key.
+// Every token is located at `name`, so rustc points at the name, not the whole macro call.
+// Only prefixed identifiers are in scope inside the struct block, so it shadows nothing.
+fn lookup(names: &Names, rt: &Path, function: &str, name: &Ident) -> Tokens {
+    let span = proc_macro2::Span::mixed_site().located_at(name.span());
+    let function = Ident::new(function, span);
+    let call = names.ident_at("lookup", span);
+    let key_name = names.ident_at("KeyName", span);
+    let key = names.ident_at("Key", span);
+    let relation = names.ident_at("relation", span);
+    let key_type = key_type(rt, name);
+    let mut local = name.clone();
+    local.set_span(span);
+    quote_spanned!(span=> {
+        use #rt::schema::{selection::#function as #call, KeyName as #key_name};
+        type #key = #key_type;
+        #call(#relation, {
+            #[allow(non_camel_case_types)]
+            struct #local;
+            impl #key_name for #local { type Key = #key; }
+            #local
+        })
+    })
 }
 struct KeyInput {
     runtime: Path,

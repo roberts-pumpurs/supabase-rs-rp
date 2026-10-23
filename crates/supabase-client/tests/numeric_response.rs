@@ -16,10 +16,6 @@ struct Row {
     clippy::panic_in_result_fn,
     reason = "Assertions report a failed numeric precision contract; Result propagates transport setup failures."
 )]
-#[expect(
-    clippy::unwrap_in_result,
-    reason = "Tokio's test macro expects runtime construction to succeed."
-)]
 #[tokio::test]
 async fn numeric_response_preserves_precision_and_integer_width()
 -> Result<(), Box<dyn core::error::Error>> {

@@ -8,10 +8,6 @@ use rp_supabase_realtime::message::phx_join::PostgresChanges;
 use rp_supabase_realtime::realtime::{RealtimeConnection, typed_changes};
 use tracing_subscriber::EnvFilter;
 
-#[expect(
-    clippy::unwrap_in_result,
-    reason = "Tokio's main macro expects runtime construction to succeed."
-)]
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
     tracing_subscriber::fmt()

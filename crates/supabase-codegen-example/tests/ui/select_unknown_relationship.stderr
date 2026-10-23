@@ -1,0 +1,14 @@
+error[E0277]: no relationship `orders_bling` on `rp_supabase_codegen_example::database::public::tables::orders::Row`
+ --> tests/ui/select_unknown_relationship.rs:5:51
+  |
+5 |     let _ = select!(orders::Row => { id, billing: orders_bling { label } });
+  |                                                   ^^^^^^^^^^^^ unknown relationship
+  |
+  = help: the trait `rp_supabase_client::schema::selection::SelectedRelationship<orders_bling>` is not implemented for `rp_supabase_codegen_example::database::public::tables::orders::Row`
+  = note: valid names are the items of the `relationships` module next to `rp_supabase_codegen_example::database::public::tables::orders::Row`
+note: required by a bound in `rp_supabase_client::schema::selection::edge`
+ --> $WORKSPACE/crates/supabase-client/src/schema/selection.rs
+  |
+  | pub fn edge<R: SelectedRelationship<N, Edge = E>, N, E>(_: RelationToken<R>, _: N) -> EdgeToken<E> {
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `edge`
+  = note: this error originates in the macro `select` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- An unknown column or relationship in `select!` is one compile error at that name: ``no column `title` on `Row` ``. Before, rustc printed the name as a tuple of `Character` types, listed every valid key the same way, and reported it twice.
+- A `projection!` shared filter used with a relation outside its list names the filter: ``shared filter `content_id` of `Content` has no column on `Row` ``.
+- `ColumnByKey` and `RelationshipByKey` failures, for example `selected.column(key!(titl))`, say "has no column for this key" instead of "the trait bound is not satisfied".
+
 ## [0.13.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-client-v0.12.0...rp-supabase-client-v0.13.0) - 2026-10-20
 
 ### Breaking
