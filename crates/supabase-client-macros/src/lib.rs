@@ -34,7 +34,7 @@ struct Field {
 enum Kind {
     Scalar,
     Nested(Ident, Vec<Field>, bool),
-    Shared(Ident, Type, bool),
+    Shared(Ident, Box<Type>, bool),
     Empty(Ident, bool),
 }
 fn fields(input: ParseStream) -> syn::Result<Vec<Field>> {
@@ -83,7 +83,7 @@ fn fields(input: ParseStream) -> syn::Result<Vec<Field>> {
                         return Err(args.error("unexpected embed arguments"));
                     }
                     match dto {
-                        Some(dto) => Kind::Shared(key, dto, inner),
+                        Some(dto) => Kind::Shared(key, Box::new(dto), inner),
                         None => Kind::Empty(key, inner),
                     }
                 }
