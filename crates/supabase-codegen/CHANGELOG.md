@@ -4,10 +4,9 @@
 
 ## [0.14.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-codegen-v0.13.1...rp-supabase-codegen-v0.14.0) - 2026-10-24
 
-### Other
+### Breaking
 
-- *(deps)* [**breaking**] move simd-json to 0.18
-- raise the minimum Rust version to 1.88
+- Requires Rust 1.88. Use with rp-supabase-client 0.14. Generated code does not change.
 
 ## [0.13.1](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-codegen-v0.13.0...rp-supabase-codegen-v0.13.1) - 2026-10-23
 

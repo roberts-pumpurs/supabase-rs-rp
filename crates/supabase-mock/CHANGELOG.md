@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.11.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-mock-v0.10.1...rp-supabase-mock-v0.11.0) - 2026-10-24
 
-### Other
+### Changed
 
-- raise the minimum Rust version to 1.88
+- Requires Rust 1.88. The version follows the workspace release. jsonwebtoken 11 and simd-json 0.18 are used internally. No API changes.
 
 ## [0.10.1](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-mock-v0.10.0...rp-supabase-mock-v0.10.1) - 2026-10-23
 

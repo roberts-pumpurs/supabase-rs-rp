@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.11.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-realtime-v0.10.1...rp-supabase-realtime-v0.11.0) - 2026-10-24
 
-### Other
-
-- *(deps)* [**breaking**] move simd-json to 0.18
-- raise the minimum Rust version to 1.88
-
 ### Breaking
 
 - The re-exported `simd_json` is 0.18. Payloads, `OwnedValue` and errors use 0.18 types, and `rp_supabase_auth` is 0.11. Upgrade a direct simd-json dependency to 0.18 to match.
