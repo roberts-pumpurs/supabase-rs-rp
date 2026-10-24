@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*", "xtask", "examples"]
 
 [workspace.package]
-version = "0.10.1"
+version = "0.11.0"
 authors = [
   "Roberts Pumpurs <roberts@pumpurlabs.com>",
 ]
@@ -79,16 +79,16 @@ assert_is_empty = "allow"
 # our cretes
 # rp-supabase-mock has no entry here: workspace crates use it only as a path-only
 # dev-dependency, so publishing never waits for the mock release.
-rp-supabase-auth = { path = "crates/supabase-auth", version = "0.10" }
-rp-supabase-client = { path = "crates/supabase-client", version = "0.13", default-features = false }
+rp-supabase-auth = { path = "crates/supabase-auth", version = "0.11" }
+rp-supabase-client = { path = "crates/supabase-client", version = "0.14", default-features = false }
 rp-supabase-storage = { path = "crates/supabase-storage", version = "0.2" }
 rp-supabase-functions = { path = "crates/supabase-functions", version = "0.1" }
-supabase-rp = { path = "crates/supabase-rp", version = "0.5" }
+supabase-rp = { path = "crates/supabase-rp", version = "0.6" }
 rp-postgrest-error = { path = "crates/postgrest-error", version = "0.8" }
-rp-supabase-realtime = { path = "crates/supabase-realtime", version = "0.10" }
-rp-supabase-codegen = { path = "crates/supabase-codegen", version = "0.13" }
+rp-supabase-realtime = { path = "crates/supabase-realtime", version = "0.11" }
+rp-supabase-codegen = { path = "crates/supabase-codegen", version = "0.14" }
 rp-postgrest = { path = "crates/postgrest", version = "3.2" }
-rp-supabase-client-macros = { path = "crates/supabase-client-macros", version = "=0.13.1" }
+rp-supabase-client-macros = { path = "crates/supabase-client-macros", version = "=0.14.0" }
 
 # Async
 futures-concurrency = "7.7"

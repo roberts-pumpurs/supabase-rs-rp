@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-client-macros-v0.13.1...rp-supabase-client-macros-v0.14.0) - 2026-10-24
+
+### Breaking
+
+- Requires Rust 1.88. Released with rp-supabase-client 0.14, which pins this version exactly. The macros do not change.
+
 ## [0.13.1](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-client-macros-v0.13.0...rp-supabase-client-macros-v0.13.1) - 2026-10-23
 
 ### Fixed
