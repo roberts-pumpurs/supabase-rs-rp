@@ -5,7 +5,7 @@
 Rust crates for [Supabase](https://supabase.com): database (PostgREST), auth, storage, edge functions, and realtime.
 Use them in async Rust services, CLIs, and tests that talk to a Supabase project.
 Start with the `supabase-rp` crate and plain queries. Add generated, compile-time checked types later if you want them.
-All crates require Rust 1.85 or later.
+All crates require Rust 1.88 or later.
 
 ## Quickstart
 
@@ -98,7 +98,7 @@ The [codegen example](./crates/supabase-codegen-example/README.md) shows build-s
 
 ## Development guide
 
-1. Install the pinned Rust 1.99.0 toolchain with `rustup show`. Development and CI use this stable release. The published crates retain Rust 1.85 support.
+1. Install the pinned Rust 1.99.0 toolchain with `rustup show`. Development and CI use this stable release. The published crates support Rust 1.88.
 2. Run `cargo fmt --all --check`.
 3. Run `cargo clippy --workspace --all-features --all-targets --locked -- -D warnings`.
 4. Run `cargo test --workspace --all-features --all-targets --locked`.

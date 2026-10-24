@@ -1,6 +1,7 @@
 [package]
 name = "rp-supabase-auth"
 version.workspace = true
+rust-version = "1.88"
 authors.workspace = true
 description = "Typed async client for Supabase Auth (GoTrue) with automatic JWT refresh"
 documentation = "https://docs.rs/rp-supabase-auth"

@@ -2,7 +2,7 @@
 name = "supabase-rp"
 version = "0.5.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.88"
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true

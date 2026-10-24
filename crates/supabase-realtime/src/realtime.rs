@@ -545,15 +545,11 @@ impl RealtimeBaseConnection {
                     }
                     Err(err) => {
                         tracing::warn!(?err, "Error sending message");
-                        #[expect(
-                            clippy::collapsible_if,
-                            reason = "Let-chains require Rust 1.88; retain Rust 1.85 support."
-                        )]
-                        if let SupabaseRealtimeError::WebsocketError(err) = &err {
-                            if let Err(err) = is_irrecoverable_ws_err(err) {
-                                tracing::error!(?err, "Irrecoverable error");
-                                return Poll::Ready(None);
-                            }
+                        if let SupabaseRealtimeError::WebsocketError(err) = &err
+                            && let Err(err) = is_irrecoverable_ws_err(err)
+                        {
+                            tracing::error!(?err, "Irrecoverable error");
+                            return Poll::Ready(None);
                         }
                         cx.waker().wake_by_ref();
                         return Poll::Ready(Some(Err(err)));

@@ -165,10 +165,10 @@ pub struct InvokeBuilder {
 
 impl InvokeBuilder {
     fn update(mut self, apply: impl FnOnce(&mut Request) -> Result<(), FunctionsError>) -> Self {
-        if let Ok(request) = self.state.as_mut() {
-            if let Err(error) = apply(request) {
-                self.state = Err(error);
-            }
+        if let Ok(request) = self.state.as_mut()
+            && let Err(error) = apply(request)
+        {
+            self.state = Err(error);
         }
         self
     }

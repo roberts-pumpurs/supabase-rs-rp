@@ -117,8 +117,8 @@ thiserror = "2"
 xshell = "0.2"
 typed-builder = "0.23"
 # Mock JWTs use only HS256. Do not compile unused PEM parsing and its time dependency.
-# jsonwebtoken 10 needs one crypto backend; rustls already links aws-lc-rs.
-jsonwebtoken = { version = "10", default-features = false, features = ["aws_lc_rs"] }
+# jsonwebtoken needs one crypto backend; rustls already links aws-lc-rs.
+jsonwebtoken = { version = "11", default-features = false, features = ["aws_lc_rs"] }
 rust_decimal_macros = "1"
 rust_decimal = { version = "1", features = ["maths"] }
 arrayvec = "0.7"
