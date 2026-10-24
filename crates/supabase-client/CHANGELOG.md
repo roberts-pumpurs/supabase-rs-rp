@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking
+
+- The re-exported `rp_supabase_auth` moves to 0.11, which uses simd-json 0.18.
+- Requires Rust 1.88.
+
 ## [0.13.1](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-client-v0.13.0...rp-supabase-client-v0.13.1) - 2026-10-23
 
 ### Fixed

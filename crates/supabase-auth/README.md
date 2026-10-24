@@ -6,7 +6,7 @@ Typed async client for [Supabase Auth](https://supabase.com/docs/guides/auth) (G
 
 ```toml
 [dependencies]
-rp-supabase-auth = "0.10"
+rp-supabase-auth = "0.11"
 ```
 
 The client talks to `<project-url>/auth/v1/`. Pass the project base URL, for example `https://abc.supabase.co/`, and the project API key (anon or service role).
