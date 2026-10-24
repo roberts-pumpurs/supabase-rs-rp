@@ -10,7 +10,7 @@ It gives you REST, auth, storage, edge functions, GraphQL, and realtime configur
 
 ```toml
 [dependencies]
-supabase-rp = { version = "0.6", features = ["full"] }
+supabase-rp = { version = "0.7", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
@@ -19,6 +19,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 |-------------|---------|---------------------------------------------------------|
 | `rest`      | yes     | `Client::rest`, `Client::from` (PostgREST)              |
 | `auth`      | yes     | `Client::auth` (Supabase Auth)                          |
+| `file-session-store` | no | File-backed auth sessions (enables `auth`)             |
 | `storage`   | no      | `Client::storage` (buckets, objects, signed URLs)       |
 | `functions` | no      | `Client::functions` (edge functions)                    |
 | `realtime`  | no      | `Client::realtime_config` (websocket channels)          |
@@ -28,7 +29,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 | `typed`     | no      | Re-exports `rp-supabase-client` as `supabase_rp::typed` (schema runtime only) |
 | `typed-client` | no   | `typed` plus the client API of `rp-supabase-client` (enables `serde_json/arbitrary_precision`) |
 | `test-util` | no      | `rp-postgrest/test-util`, for example `postgrest::Error::from_response` in tests |
-| `full`      | no      | All services and typed-client; does not select a TLS backend |
+| `full`      | no      | All services, typed-client, and file session storage; does not select a TLS backend |
 
 Each enabled crate is re-exported as a module (see [Module map](#module-map)).
 You need only this one dependency.
@@ -253,6 +254,13 @@ then run typed queries against `client.rest()`. It is the same `Postgrest` the t
 `typed` enables only the schema runtime. Set the codegen `runtime_path` to
 `::supabase_rp::typed::schema`, and you need no direct `rp-supabase-client` dependency.
 Enable `typed-client` for the client API (authentication helpers and response decoding).
+
+## Migration from 0.6
+
+- Public re-exports move to auth/realtime 0.12, typed client 0.15, and storage 0.3.
+- Regenerate bindings with codegen 0.15. See the [typed client migration notes](../supabase-client/README.md#migration-from-014).
+- See the [auth migration notes](../supabase-auth/README.md#migration-from-011) for refresh streams and admin write types.
+- Enable `file-session-store` or `full` to use `auth::session_store::FileSessionStore`. Use a private, trusted parent directory.
 
 ## Module map
 

@@ -6,7 +6,7 @@ Typed async client for [Supabase Auth](https://supabase.com/docs/guides/auth) (G
 
 ```toml
 [dependencies]
-rp-supabase-auth = "0.11"
+rp-supabase-auth = "0.12"
 ```
 
 The client talks to `<project-url>/auth/v1/`. Pass the project base URL, for example `https://abc.supabase.co/`, and the project API key (anon or service role).
@@ -116,7 +116,7 @@ The example needs a direct `reqwest` dependency, for example `reqwest = { versio
 
 The client adds the `apikey`, `Accept`, `Content-Type`, and bearer headers to each request. It does not change the defaults of the client you pass in. The `apikey` and bearer header values are marked sensitive, so they do not appear in debug output.
 
-For PostgREST clients that share this transport, use `anonymous_client_with_client` and `new_authenticated_with_client` from `rp-supabase-client` 0.10. REST errors use the `rp-postgrest` 3.2 error type, not `AuthError`.
+For PostgREST clients that share this transport, use `anonymous_client_with_client` and `new_authenticated_with_client` from `rp-supabase-client` 0.15. REST errors use the `rp-postgrest` 3.3 error type, not `AuthError`.
 
 ## Other endpoints and admin requests
 
@@ -174,6 +174,12 @@ The other variants cover transport failures, invalid URLs, invalid header values
 Protocol references: [GoTrue authorization](https://github.com/supabase/auth/blob/master/internal/api/external.go), [auth-js OAuth/anonymous/PKCE](https://github.com/supabase/auth-js/blob/master/src/GoTrueClient.ts), [RFC 7636 S256 vector](https://www.rfc-editor.org/rfc/rfc7636#appendix-B).
 
 Refresh stream state is now private (except its client). Refresh deadlines start at successful token receipt, not the consumer's next poll; retry deadlines start when a failure is yielded, including password sign-in failures. Errors are observable even on the final failed attempt, and failed refreshes never fall back to password login. Dropping the stream cancels its tasks.
+
+## Migration from 0.11
+
+- Use `JwtStream` constructors instead of constructing `JwtRefreshStream` directly. Refresh state is private.
+- `AdminUserUpdateRequest` takes `UserAttributes`, the user update payload, instead of a read-response user type.
+- Account for the new session validation and persistence errors when matching `AuthError`.
 
 ## Migration from 0.9
 

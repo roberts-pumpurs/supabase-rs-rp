@@ -9,7 +9,7 @@ It manages buckets, uploads and downloads objects, and creates signed and public
 
 ```toml
 [dependencies]
-rp-supabase-storage = "0.2"
+rp-supabase-storage = "0.3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
