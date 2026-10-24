@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-client-macros-v0.14.0...rp-supabase-client-macros-v0.15.0) - 2026-10-24
+
+### Added
+
+- expand Supabase clients and typed query diagnostics
+
 ### Breaking
 
 - Value-form `key!(name)` carries a readable name marker in `Key<K, N>`. Explicit

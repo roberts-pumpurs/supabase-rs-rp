@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [3.3.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-postgrest-v3.2.2...rp-postgrest-v3.3.0) - 2026-10-24
+
+### Added
+
+- expand Supabase clients and typed query diagnostics
+
 ### Added
 
 - Shared bounded HTTP 429 retry policy, with safe read replay and explicit mutation opt-in.

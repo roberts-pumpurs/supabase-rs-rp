@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.15.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-codegen-v0.14.0...rp-supabase-codegen-v0.15.0) - 2026-10-24
+
+### Added
+
+- expand Supabase clients and typed query diagnostics
+
 ### Breaking
 
 - Regenerate bindings with the matching runtime. Generated `Relation` implementations now provide

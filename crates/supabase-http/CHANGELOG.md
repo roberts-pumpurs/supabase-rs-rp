@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.1.0](https://github.com/roberts-pumpurs/supabase-rs-rp/releases/tag/rp-supabase-http-v0.1.0) - 2026-10-24
+
+### Added
+
+- expand Supabase clients and typed query diagnostics
+
 ### Added
 
 - Shared HTTP client construction with same-origin redirects and rustls or native TLS.
