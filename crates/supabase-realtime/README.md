@@ -13,7 +13,7 @@ It connects over a websocket, signs in with Supabase Auth, and gives you three c
 
 ```toml
 [dependencies]
-rp-supabase-realtime = "0.10"
+rp-supabase-realtime = "0.11"
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```

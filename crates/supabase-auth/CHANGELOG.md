@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking
+
+- simd-json moves to 0.18. `Error::Json` wraps `simd_json::Error` from 0.18. Upgrade a direct simd-json dependency to 0.18 to match.
+- Requires Rust 1.88.
+
 ## [0.10.1](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-auth-v0.10.0...rp-supabase-auth-v0.10.1) - 2026-10-23
 
 ### Other
