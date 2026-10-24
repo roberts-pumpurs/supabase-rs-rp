@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*", "xtask", "examples"]
 
 [workspace.package]
-version = "0.11.0"
+version = "0.12.0"
 authors = [
   "Roberts Pumpurs <roberts@pumpurlabs.com>",
 ]
@@ -81,16 +81,16 @@ semicolon_outside_block = "allow"
 # our cretes
 # rp-supabase-mock has no entry here: workspace crates use it only as a path-only
 # dev-dependency, so publishing never waits for the mock release.
-rp-supabase-auth = { path = "crates/supabase-auth", version = "0.11", default-features = false }
-rp-supabase-client = { path = "crates/supabase-client", version = "0.14", default-features = false }
-rp-supabase-storage = { path = "crates/supabase-storage", version = "0.2", default-features = false }
+rp-supabase-auth = { path = "crates/supabase-auth", version = "0.12", default-features = false }
+rp-supabase-client = { path = "crates/supabase-client", version = "0.15", default-features = false }
+rp-supabase-storage = { path = "crates/supabase-storage", version = "0.3", default-features = false }
 rp-supabase-functions = { path = "crates/supabase-functions", version = "0.1", default-features = false }
 supabase-rp = { path = "crates/supabase-rp", version = "0.6" }
 rp-postgrest-error = { path = "crates/postgrest-error", version = "0.8" }
-rp-supabase-realtime = { path = "crates/supabase-realtime", version = "0.11", default-features = false }
-rp-supabase-codegen = { path = "crates/supabase-codegen", version = "0.14" }
-rp-postgrest = { path = "crates/postgrest", version = "3.2", default-features = false }
-rp-supabase-client-macros = { path = "crates/supabase-client-macros", version = "=0.14.0" }
+rp-supabase-realtime = { path = "crates/supabase-realtime", version = "0.12", default-features = false }
+rp-supabase-codegen = { path = "crates/supabase-codegen", version = "0.15" }
+rp-postgrest = { path = "crates/postgrest", version = "3.3", default-features = false }
+rp-supabase-client-macros = { path = "crates/supabase-client-macros", version = "=0.15.0" }
 rp-supabase-http = { path = "crates/supabase-http", version = "0.1", default-features = false }
 rp-supabase-graphql = { path = "crates/supabase-graphql", version = "0.1", default-features = false }
 

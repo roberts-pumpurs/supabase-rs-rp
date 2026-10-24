@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/supabase-rp-v0.6.0...supabase-rp-v0.6.1) - 2026-10-24
+
+### Added
+
+- expand Supabase clients and typed query diagnostics
+
 ### Added
 
 - GraphQL feature with typed data, execution errors, and partial responses.
