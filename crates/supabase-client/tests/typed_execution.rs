@@ -18,6 +18,7 @@ struct Row {
     id: i32,
 }
 impl Relation for Row {
+    type ColumnLookup = rp_supabase_client::schema::selection::RelationToken<Self>;
     const SCHEMA: &'static str = "public";
     const NAME: &'static str = "typed.probe";
 }

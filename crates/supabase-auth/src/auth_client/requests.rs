@@ -793,18 +793,23 @@ impl AuthModuleRequest for AdminUserGetRequest {
 #[derive(Debug, Clone, Serialize, typed_builder::TypedBuilder)]
 pub struct AdminUserUpdateRequest {
     pub user_id: String,
-    pub user: types::UserSchema,
+    pub user: crate::admin::UserAttributes,
 }
 
 impl AuthModuleRequest for AdminUserUpdateRequest {
     type Res = types::UserSchema;
-    type Payload = types::UserSchema;
+    type Payload = crate::admin::UserAttributes;
 
     const METHOD: Method = Method::PUT;
 
     fn path(&self, base_url: &Url) -> Result<Url, AuthError> {
-        let endpoint = format!("admin/users/{}", self.user_id);
-        base_url.join(&endpoint).map_err(AuthError::from)
+        let mut endpoint = base_url.join("admin/users/")?;
+        endpoint
+            .path_segments_mut()
+            .map_err(|()| AuthError::InvalidSession("invalid auth base URL"))?
+            .pop_if_empty()
+            .push(&self.user_id);
+        Ok(endpoint)
     }
 
     fn payload(&self) -> &Self::Payload {

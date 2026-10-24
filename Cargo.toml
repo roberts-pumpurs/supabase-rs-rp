@@ -74,31 +74,35 @@ inline_modules = "allow"
 doc_paragraphs_missing_punctuation = "allow"
 # Keep existing empty-result assertions instead of rewriting test style.
 assert_is_empty = "allow"
+# Keep semicolons inside unit-valued blocks; the opposite style lint conflicts.
+semicolon_outside_block = "allow"
 
 [workspace.dependencies]
 # our cretes
 # rp-supabase-mock has no entry here: workspace crates use it only as a path-only
 # dev-dependency, so publishing never waits for the mock release.
-rp-supabase-auth = { path = "crates/supabase-auth", version = "0.11" }
+rp-supabase-auth = { path = "crates/supabase-auth", version = "0.11", default-features = false }
 rp-supabase-client = { path = "crates/supabase-client", version = "0.14", default-features = false }
-rp-supabase-storage = { path = "crates/supabase-storage", version = "0.2" }
-rp-supabase-functions = { path = "crates/supabase-functions", version = "0.1" }
+rp-supabase-storage = { path = "crates/supabase-storage", version = "0.2", default-features = false }
+rp-supabase-functions = { path = "crates/supabase-functions", version = "0.1", default-features = false }
 supabase-rp = { path = "crates/supabase-rp", version = "0.6" }
 rp-postgrest-error = { path = "crates/postgrest-error", version = "0.8" }
-rp-supabase-realtime = { path = "crates/supabase-realtime", version = "0.11" }
+rp-supabase-realtime = { path = "crates/supabase-realtime", version = "0.11", default-features = false }
 rp-supabase-codegen = { path = "crates/supabase-codegen", version = "0.14" }
-rp-postgrest = { path = "crates/postgrest", version = "3.2" }
+rp-postgrest = { path = "crates/postgrest", version = "3.2", default-features = false }
 rp-supabase-client-macros = { path = "crates/supabase-client-macros", version = "=0.14.0" }
+rp-supabase-http = { path = "crates/supabase-http", version = "0.1", default-features = false }
+rp-supabase-graphql = { path = "crates/supabase-graphql", version = "0.1", default-features = false }
 
 # Async
-futures-concurrency = "7.7"
 futures-util = "0.3"
 futures = "0.3"
-reqwest = { version = "0.13", default-features = false, features = ["json", "gzip", "deflate", "rustls", "stream", "http2"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "gzip", "deflate", "stream", "http2"] }
 tokio = { version = "1", default-features = false, features = [] }
-pin-project = "1"
 futures-timer = "3"
 tokio-stream = "0.1"
+async-stream = "0.3"
+tokio-tungstenite = { version = "0.30", default-features = false, features = ["connect"] }
 
 # Errors
 eyre = "0.6"
@@ -124,16 +128,11 @@ rust_decimal = { version = "1", features = ["maths"] }
 arrayvec = "0.7"
 itertools = "0.15"
 base64 = "0.23"
-hyper-util = { version = "0.1.21", features = ["tokio"] }
-http-body-util = { version = "0.1.5" }
 tokio-rustls = { version = "0.26", default-features = false, features = ["tls12"] }
-rustls-pemfile = "2"
 rustls = { version = "0.23.46", default-features = false }
 rustls-native-certs = "0.8"
 bytes = "1.12.1"
 clap = { version = "4.6", features = ["derive"] }
-hyper = { version = "1", features = ["http1", "client"] }
-fastwebsockets = { version = "0.10", features = ["upgrade"] }
 
 # Tests
 rstest = "0.28"

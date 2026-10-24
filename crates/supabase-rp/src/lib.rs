@@ -17,6 +17,10 @@ pub use rp_supabase_client as typed;
 /// Edge Functions client (`rp-supabase-functions`).
 #[cfg(feature = "functions")]
 pub use rp_supabase_functions as functions;
+/// GraphQL queries, mutations, and partial responses (`rp-supabase-graphql`).
+#[cfg(feature = "graphql")]
+pub use rp_supabase_graphql as graphql;
+pub use rp_supabase_http::RetryPolicy;
 /// Realtime changes, broadcast, and presence (`rp-supabase-realtime`).
 #[cfg(feature = "realtime")]
 pub use rp_supabase_realtime as realtime;
@@ -67,6 +71,10 @@ pub enum Error {
     #[cfg(feature = "functions")]
     #[error(transparent)]
     Functions(#[from] rp_supabase_functions::FunctionsError),
+    /// The GraphQL client rejected its configuration.
+    #[cfg(feature = "graphql")]
+    #[error(transparent)]
+    Graphql(#[from] rp_supabase_graphql::GraphqlClientError),
     /// The default HTTP client cannot be built.
     #[error(transparent)]
     Http(#[from] reqwest::Error),
@@ -81,6 +89,7 @@ pub struct Client {
     project_url: Url,
     api_key: String,
     http: reqwest::Client,
+    retry_policy: RetryPolicy,
     #[cfg(feature = "rest")]
     rest: rp_postgrest::Postgrest,
     #[cfg(feature = "auth")]
@@ -89,6 +98,8 @@ pub struct Client {
     storage: rp_supabase_storage::StorageClient,
     #[cfg(feature = "functions")]
     functions: rp_supabase_functions::FunctionsClient,
+    #[cfg(feature = "graphql")]
+    graphql: rp_supabase_graphql::GraphqlClient,
 }
 
 impl core::fmt::Debug for Client {
@@ -100,24 +111,6 @@ impl core::fmt::Debug for Client {
     }
 }
 
-/// Follows up to 10 redirects, but only to the same origin (scheme, host, port), so
-/// credential headers never reach another host.
-fn same_origin_redirects() -> reqwest::redirect::Policy {
-    reqwest::redirect::Policy::custom(|attempt| {
-        let same_origin = attempt
-            .previous()
-            .last()
-            .is_some_and(|prev| prev.origin() == attempt.url().origin());
-        if !same_origin {
-            attempt.stop()
-        } else if attempt.previous().len() > 10 {
-            attempt.error("too many redirects")
-        } else {
-            attempt.follow()
-        }
-    })
-}
-
 impl Client {
     /// Creates a client for the project at `project_url`, for example `https://abc.supabase.co/`.
     ///
@@ -127,9 +120,7 @@ impl Client {
     /// Returns [`Error::UrlParse`] or [`Error::InvalidProjectUrl`] for a bad URL, and a
     /// sub-client error when a credential is not a valid header value.
     pub fn new(project_url: &str, api_key: &str) -> Result<Self, Error> {
-        let http = reqwest::Client::builder()
-            .redirect(same_origin_redirects())
-            .build()?;
+        let http = rp_supabase_http::client_builder().build()?;
         Self::new_with_client(project_url, api_key, http)
     }
 
@@ -161,6 +152,13 @@ impl Client {
                 api_key,
                 http.clone(),
             )?,
+            #[cfg(feature = "graphql")]
+            graphql: rp_supabase_graphql::GraphqlClient::new_with_client(
+                &project_url,
+                api_key,
+                http.clone(),
+            )?,
+            retry_policy: RetryPolicy::default(),
             api_key: api_key.to_owned(),
             http,
             project_url,
@@ -182,7 +180,8 @@ impl Client {
             feature = "rest",
             feature = "auth",
             feature = "storage",
-            feature = "functions"
+            feature = "functions",
+            feature = "graphql"
         )),
         expect(
             unused_variables,
@@ -195,25 +194,58 @@ impl Client {
             project_url: self.project_url.clone(),
             api_key: self.api_key.clone(),
             http: self.http.clone(),
+            retry_policy: self.retry_policy,
             #[cfg(feature = "rest")]
             rest: rest_client(
                 &self.project_url,
                 &self.api_key,
                 Some(token),
                 self.http.clone(),
-            )?,
+            )?
+            .with_retry_policy(self.retry_policy),
             #[cfg(feature = "auth")]
             auth: auth_client(
                 &self.project_url,
                 &self.api_key,
                 Some(token),
                 self.http.clone(),
-            )?,
+            )?
+            .with_retry_policy(self.retry_policy),
             #[cfg(feature = "storage")]
             storage: self.storage.with_access_token(token)?,
             #[cfg(feature = "functions")]
             functions: self.functions.with_access_token(token)?,
+            #[cfg(feature = "graphql")]
+            graphql: self.graphql.with_access_token(token)?,
         })
+    }
+
+    /// Apply one rate-limit retry policy to every enabled HTTP client.
+    /// Mutations are sent once unless the policy explicitly permits replay.
+    #[must_use]
+    pub fn with_retry_policy(mut self, policy: RetryPolicy) -> Self {
+        self.retry_policy = policy;
+        #[cfg(feature = "rest")]
+        {
+            self.rest = self.rest.with_retry_policy(policy);
+        }
+        #[cfg(feature = "auth")]
+        {
+            self.auth = self.auth.with_retry_policy(policy);
+        }
+        #[cfg(feature = "storage")]
+        {
+            self.storage = self.storage.with_retry_policy(policy);
+        }
+        #[cfg(feature = "functions")]
+        {
+            self.functions = self.functions.with_retry_policy(policy);
+        }
+        #[cfg(feature = "graphql")]
+        {
+            self.graphql = self.graphql.with_retry_policy(policy);
+        }
+        self
     }
 
     /// Returns a client that sends storage requests to the project at `project_url`, for
@@ -265,6 +297,24 @@ impl Client {
         &self.auth
     }
 
+    /// Build an elevated admin client with explicit server-only credentials.
+    /// This does not elevate or replace the user session on this client.
+    ///
+    /// # Errors
+    /// Returns invalid service-role header errors.
+    #[cfg(feature = "auth")]
+    pub fn admin(
+        &self,
+        service_role_key: &str,
+    ) -> Result<rp_supabase_auth::admin::AdminClient, Error> {
+        Ok(rp_supabase_auth::admin::AdminClient::new_with_client(
+            &self.project_url,
+            service_role_key,
+            self.http.clone(),
+        )?
+        .with_retry_policy(self.retry_policy))
+    }
+
     /// Storage client for `{project}/storage/v1/`.
     #[cfg(feature = "storage")]
     #[must_use]
@@ -279,12 +329,19 @@ impl Client {
         &self.functions
     }
 
+    /// GraphQL client for `{project}/graphql/v1`.
+    #[cfg(feature = "graphql")]
+    #[must_use]
+    pub const fn graphql(&self) -> &rp_supabase_graphql::GraphqlClient {
+        &self.graphql
+    }
+
     /// Configuration for `RealtimeConnection::db_changes`, `presence`, and `broadcast`.
     ///
     /// Realtime signs in on its own, so it uses the project key, not a user token.
     /// Retry defaults for sign-in and token refresh: [`REALTIME_MAX_RECONNECT_ATTEMPTS`]
-    /// attempts, [`REALTIME_RECONNECT_INTERVAL`] apart. The websocket itself does not reconnect.
-    /// Change the returned fields to override the retry settings.
+    /// attempts, [`REALTIME_RECONNECT_INTERVAL`] apart. Websocket reconnect has its own
+    /// options on `RealtimeConnection`.
     #[cfg(feature = "realtime")]
     #[must_use]
     pub fn realtime_config(

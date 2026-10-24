@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Typed public, authenticated streaming, and signed image transformations.
+- Bounded-memory TUS 1.0 upload sessions with persisted URL handles, HEAD resume,
+  offset reconciliation, cancellation-safe dirty state, and strict chunk sizing.
+- Shared configurable 429 retries for storage requests; resumable PATCH never replays.
+
+### Fixed
+
+- Preserve TUS overwrite intent on every HEAD/PATCH; reopening explicitly accepts `upsert`.
+- Reject remote signed-image JWT path claims that do not exactly match the requested
+  bucket/key, reporting an upstream signing mismatch without exposing the token.
+- Do not PATCH a confirmed complete TUS upload. Creation already completes an empty object.
+
 ## [0.2.2](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-storage-v0.2.1...rp-supabase-storage-v0.2.2) - 2026-10-24
 
 ### Other

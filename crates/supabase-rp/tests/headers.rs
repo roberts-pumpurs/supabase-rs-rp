@@ -21,6 +21,8 @@ async fn expect_all(server: &mut ServerGuard, key: &str, bearer: Matcher) -> Vec
         ("GET", "/auth/v1/user"),
         ("GET", "/storage/v1/bucket"),
         ("POST", "/functions/v1/hello"),
+        #[cfg(feature = "graphql")]
+        ("POST", "/graphql/v1"),
     ] {
         mocks.push(
             server
@@ -43,6 +45,8 @@ async fn call_all(client: &Client) {
     drop(client.auth().get_user().await);
     drop(client.storage().list_buckets().await);
     drop(client.functions().invoke("hello").send().await);
+    #[cfg(feature = "graphql")]
+    drop(client.graphql().query("{ __typename }").send().await);
 }
 
 /// Every service sends the project key as `apikey`. Before `with_access_token`, the bearer is

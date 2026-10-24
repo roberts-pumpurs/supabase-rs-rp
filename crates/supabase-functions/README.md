@@ -90,6 +90,16 @@ match client.invoke("hello-world").send().await {
 # }
 ```
 
+## Rate limits and TLS
+
+`with_retry_policy(RetryPolicy)` sets bounded retries for explicit HTTP 429 responses.
+The default replays only GET, HEAD and OPTIONS, never the default POST invocation.
+Use mutation replay only when the function rejects a rate-limited request before any side effect.
+Transport failures and other HTTP statuses are not replayed by this policy.
+
+The default TLS backend is rustls. For native TLS, disable default features and enable `native-tls`.
+rustls takes precedence when both are enabled. Supplied HTTP clients retain their TLS and redirect policies.
+
 ## Limits
 
 The client does not stream request bodies. It does not support multipart form helpers; build the

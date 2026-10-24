@@ -23,3 +23,6 @@ jobs:
 
       - name: Test workspace and generated consumer contracts
         run: cargo test --workspace --all-features --all-targets --locked
+
+      - name: Test documentation examples
+        run: cargo test --workspace --all-features --doc --locked

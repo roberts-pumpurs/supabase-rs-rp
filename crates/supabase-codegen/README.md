@@ -156,6 +156,16 @@ Each generated `columns` marker records its owning relation, readable field type
 filter type, and exact SQL name. The compiler rejects unknown columns, columns from another
 relation, mismatched scalar values, and projections from another relation.
 
+For a concrete generated relation, an unknown `select!` column diagnostic names its SQL schema
+and table and lists every accepted Rust column identifier, including computed fields. The list
+is sorted, uses raw spelling for keywords (for example, `r#type`), and remains the same through
+function-local aliases, schema-crate dependency renames, and embedded selections. Generic relation
+roots keep the runtime's key-bound lookup; their diagnostic cannot list a table that is not yet known.
+
+This dispatch is generated as a public, hidden table-local lookup type and diagnostic trait.
+They contain no row values, allocations, or selection state. Regenerate bindings when updating to
+the matching runtime: `Relation` now requires its generated `ColumnLookup` associated type.
+
 `select!` generates local records with the schema's types and nullability. Keep `projection!`
 for named public results and reusable children, selecting them with `.select(schema::named::<_, Dto>())`.
 Both use exact SQL keys, reject missing or duplicate selected fields, and ignore extra response keys.

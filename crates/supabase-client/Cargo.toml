@@ -16,7 +16,9 @@ keywords = ["supabase", "postgrest", "database", "client", "async"]
 categories = ["api-bindings", "database", "asynchronous"]
 
 [features]
-default = ["client"]
+default = ["client", "rustls"]
+rustls = ["rp-postgrest/rustls", "rp-supabase-auth?/rustls"]
+native-tls = ["rp-postgrest/native-tls", "rp-supabase-auth?/native-tls"]
 # Authentication, response decoding, and arbitrary-precision numeric decoding.
 # Without it, only the generated-binding runtime in `schema` is compiled.
 client = [

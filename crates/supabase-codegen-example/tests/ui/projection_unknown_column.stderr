@@ -1,0 +1,5 @@
+error[E0425]: cannot find type `titl` in module `orders::columns`
+ --> tests/ui/projection_unknown_column.rs:5:37
+  |
+5 |     struct Invalid for orders { id, titl }
+  |                                     ^^^^ not found in `orders::columns`

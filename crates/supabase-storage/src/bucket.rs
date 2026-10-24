@@ -61,6 +61,10 @@ impl<'a> Bucket<'a> {
         Self { client, id }
     }
 
+    pub(crate) const fn client(&self) -> &'a StorageClient {
+        self.client
+    }
+
     /// Bucket id of this handle.
     #[must_use]
     pub const fn id(&self) -> &'a str {
@@ -116,7 +120,7 @@ impl<'a> Bucket<'a> {
             request = request.header(CONTENT_TYPE, content_type.as_str());
         }
         request = request.header(CACHE_CONTROL, format!("max-age={}", options.cache_control));
-        StorageClient::json(request).await
+        self.client.json(request).await
     }
 
     /// Downloads an object into memory. Use [`Bucket::download_stream`] for large objects or
@@ -138,7 +142,10 @@ impl<'a> Bucket<'a> {
     /// object is an error here, before any body is read.
     pub async fn download_stream(&self, path: &str) -> Result<ObjectDownload, StorageError> {
         let url = self.object_url(&["object"], path)?;
-        let response = StorageClient::send(self.client.request(Method::GET, url)).await?;
+        let response = self
+            .client
+            .send(self.client.request(Method::GET, url))
+            .await?;
         Ok(ObjectDownload { response })
     }
 
@@ -155,7 +162,9 @@ impl<'a> Bucket<'a> {
     ) -> Result<Vec<FileObject>, StorageError> {
         let url = self.client.url(["object", "list", path::bucket(self.id)?]);
         let body = ListBody { prefix, options };
-        StorageClient::json(self.client.request(Method::POST, url).json(&body)).await
+        self.client
+            .json(self.client.request(Method::POST, url).json(&body))
+            .await
     }
 
     /// Deletes objects and returns the deleted entries. The API skips missing paths and paths
@@ -172,7 +181,9 @@ impl<'a> Bucket<'a> {
         }
         let url = self.client.url(["object", path::bucket(self.id)?]);
         let body = RemoveBody { prefixes: paths };
-        StorageClient::json(self.client.request(Method::DELETE, url).json(&body)).await
+        self.client
+            .json(self.client.request(Method::DELETE, url).json(&body))
+            .await
     }
 
     /// Deletes one object (`DELETE /object/<bucket>/<path>`).
@@ -186,7 +197,9 @@ impl<'a> Bucket<'a> {
     /// Returns an error on an invalid path, transport failure, or non-success status.
     pub async fn remove_object(&self, path: &str) -> Result<(), StorageError> {
         let url = self.object_url(&["object"], path)?;
-        StorageClient::send(self.client.request(Method::DELETE, url)).await?;
+        self.client
+            .send(self.client.request(Method::DELETE, url))
+            .await?;
         Ok(())
     }
 
@@ -197,7 +210,7 @@ impl<'a> Bucket<'a> {
     /// Returns an error on an invalid path, transport failure, or non-success status.
     pub async fn move_object(&self, from: &str, to: &str) -> Result<(), StorageError> {
         let request = self.transfer("move", from, to)?;
-        StorageClient::send(request).await?;
+        self.client.send(request).await?;
         Ok(())
     }
 
@@ -208,7 +221,7 @@ impl<'a> Bucket<'a> {
     /// Returns an error on an invalid path, transport failure, non-success status, or an
     /// unexpected body.
     pub async fn copy_object(&self, from: &str, to: &str) -> Result<ObjectKey, StorageError> {
-        StorageClient::json(self.transfer("copy", from, to)?).await
+        self.client.json(self.transfer("copy", from, to)?).await
     }
 
     fn transfer(
@@ -278,17 +291,17 @@ impl<'a> Bucket<'a> {
         }
         let url = self.client.url(["object", "sign", path::bucket(self.id)?]);
         let body = SignBody { expires_in, paths };
-        let entries: Vec<SignedEntry> =
-            StorageClient::json(self.client.request(Method::POST, url).json(&body)).await?;
+        let entries: Vec<SignedEntry> = self
+            .client
+            .json(self.client.request(Method::POST, url).json(&body))
+            .await?;
         entries
             .into_iter()
             .zip(paths)
             .map(|(entry, requested)| {
                 let url = entry
                     .signed_url
-                    .map(|signed| {
-                        self.signed_url(entry.path.as_deref().unwrap_or(requested), &signed)
-                    })
+                    .map(|signed| self.signed_url(requested, &signed))
                     .transpose()?;
                 Ok(SignedUrl {
                     path: entry.path,
@@ -321,7 +334,7 @@ impl<'a> Bucket<'a> {
         self.object_url(&["object", "public"], path)
     }
 
-    fn object_url(&self, prefix: &[&str], path: &str) -> Result<Url, StorageError> {
+    pub(crate) fn object_url(&self, prefix: &[&str], path: &str) -> Result<Url, StorageError> {
         let bucket = path::bucket(self.id)?;
         let segments = path::object(path)?;
         Ok(self.client.url(
@@ -343,6 +356,10 @@ pub struct ObjectDownload {
 }
 
 impl ObjectDownload {
+    pub(crate) const fn new(response: reqwest::Response) -> Self {
+        Self { response }
+    }
+
     /// Body length from the `Content-Length` header, if the server sent one. Use it to reject
     /// an object that is too large before reading. It is not a limit: count the bytes you read.
     #[must_use]

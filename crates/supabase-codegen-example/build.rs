@@ -28,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Compile consumer regressions using an alias that deliberately shares Row's name.
     Generator::new()
         .schemas(["public", "shared"])
-        .prelude("use ::std::string::String as Row; #[derive(Debug, Clone, PartialEq, ::serde::Serialize, ::serde::Deserialize)] pub enum AuthorKind { #[serde(rename = \"user\")] User } #[derive(Debug, Clone, PartialEq, ::serde::Serialize, ::serde::Deserialize)] pub struct Outcome { pub ok: bool }")
+        .prelude("use ::std::string::String as Row; #[derive(Debug, Clone, PartialEq, Eq, ::serde::Serialize, ::serde::Deserialize)] pub enum AuthorKind { #[serde(rename = \"user\")] User } #[derive(Debug, Clone, PartialEq, Eq, ::serde::Serialize, ::serde::Deserialize)] pub struct Outcome { pub ok: bool }")
         .type_override("pg_catalog.text", "Row")
         .column_type("public.check_probe.external_author", "AuthorKind")
         .json_type("public.tables.json_probe.document", "Outcome")
@@ -49,5 +49,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .reexport_macros()
         .from_snapshot("tests/schema.json")?
         .write_to_out_dir("macro_bindings.rs")?;
+    for (runtime, output) in [
+        ("Name", "runtime_name.rs"),
+        ("Selected", "runtime_selected.rs"),
+        ("__supabase_column_runtime", "runtime_prefixed.rs"),
+    ] {
+        Generator::new()
+            .schema("public")
+            .runtime_path(format!("{runtime}::schema"))
+            .from_snapshot("schema.json")?
+            .write_to_out_dir(output)?;
+    }
     Ok(())
 }

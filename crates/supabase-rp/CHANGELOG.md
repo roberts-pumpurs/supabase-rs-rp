@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- GraphQL feature with typed data, execution errors, and partial responses.
+- Shared bounded 429 retry configuration and native TLS feature forwarding for HTTP and WebSockets.
+- Explicit server-only admin client construction through `Client::admin`.
+- OAuth/anonymous sessions, pluggable stores, MFA/admin methods, resumable uploads, image transforms, and reconnect through the service crates.
+
+### Changed
+
+- Re-exported typed runtime requires regenerated bindings and exposes readable concrete-table diagnostics.
+- Token and storage URL clones preserve retry policy and the shared HTTP pool.
+
+
 ## [0.6.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/supabase-rp-v0.5.0...supabase-rp-v0.6.0) - 2026-10-24
 
 ### Breaking

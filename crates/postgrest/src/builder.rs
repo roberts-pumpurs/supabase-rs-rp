@@ -367,7 +367,11 @@ impl Builder {
     /// # Errors
     /// Returns configuration, serialization, or transport errors.
     pub async fn execute(self) -> Result<reqwest::Response, Error> {
-        self.build()?.send().await.map_err(Error::Request)
+        let policy = self.configuration.retry_policy;
+        let (http, request) = self.build()?.build_split();
+        rp_supabase_http::execute(&http, request.map_err(Error::Request)?, policy)
+            .await
+            .map_err(Error::Request)
     }
     /// Rejects every non-2xx response, including HTTP 300. Success remains untouched.
     ///

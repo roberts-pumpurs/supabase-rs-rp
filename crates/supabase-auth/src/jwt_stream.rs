@@ -1,52 +1,51 @@
-use core::ops::Div as _;
-use core::pin::Pin;
-use core::task::{Context, Poll};
-use core::time::Duration;
-
+use crate::{
+    auth_client::ApiClient,
+    error::AuthError,
+    session_store::{SessionStore, SessionStoreError, validate_session},
+    types::{AccessTokenResponseSchema, LoginCredentials},
+};
+use alloc::sync::Arc;
+use core::{
+    pin::Pin,
+    task::{Context, Poll},
+    time::Duration,
+};
 use futures::Stream;
-use reqwest::header::InvalidHeaderValue;
 use thiserror::Error;
 use tokio::task::JoinSet;
-
-use crate::auth_client::requests::TokenRequest;
-use crate::auth_client::{ApiClient, Request};
-use crate::error::AuthError;
-use crate::types::{AccessTokenResponseSchema, LoginCredentials, RefreshTokenGrant};
 
 #[derive(Clone, Debug, PartialEq, Eq, typed_builder::TypedBuilder)]
 pub struct SupabaseAuthConfig {
     pub api_key: String,
     pub max_reconnect_attempts: u8,
-    pub reconnect_interval: core::time::Duration,
+    pub reconnect_interval: Duration,
     pub url: url::Url,
 }
 
 pub struct JwtStream {
     config: SupabaseAuthConfig,
+    store: Option<Arc<dyn SessionStore>>,
 }
-
 impl JwtStream {
-    /// Creates a [`JwtStream`] for the given project configuration.
     #[must_use]
     pub const fn new(config: SupabaseAuthConfig) -> Self {
-        Self { config }
+        Self {
+            config,
+            store: None,
+        }
     }
-
-    /// Creates a Stream that will attempt to log in to supabase and periodically refresh the JWT
-    ///
+    #[must_use]
+    pub fn with_session_store(mut self, store: Arc<dyn SessionStore>) -> Self {
+        self.store = Some(store);
+        self
+    }
     /// # Errors
-    ///
-    /// This function will return an error if the provided supabase url cannot be joined with the
-    /// expected suffix or if the client cannot be created.
-    #[tracing::instrument(skip_all)]
+    /// Returns transport or project configuration errors.
     pub fn sign_in(&self, params: LoginCredentials) -> Result<JwtRefreshStream, AuthError> {
         self.sign_in_with_client(params, crate::auth_client::default_client()?)
     }
-
-    /// Sign in and refresh using the supplied HTTP pool and transport policies.
-    ///
     /// # Errors
-    /// Returns URL or credential header configuration failures.
+    /// Returns project configuration errors.
     pub fn sign_in_with_client(
         &self,
         params: LoginCredentials,
@@ -57,164 +56,217 @@ impl JwtStream {
             &self.config.api_key,
             http,
         )?;
-        let max_reconnect_attempts = usize::from(self.config.max_reconnect_attempts);
-        Ok(JwtRefreshStream {
-            api_key: self.config.api_key.clone(),
+        Ok(self.stream(client, Action::Login(params)))
+    }
+    /// Begin with a session from OAuth, anonymous sign-in or MFA; save before yielding.
+    /// # Errors
+    /// Returns invalid-session or client configuration errors.
+    pub fn with_session(
+        &self,
+        session: AccessTokenResponseSchema,
+    ) -> Result<JwtRefreshStream, AuthError> {
+        self.with_session_with_client(session, crate::auth_client::default_client()?)
+    }
+    /// # Errors
+    /// Returns invalid-session or project configuration errors.
+    pub fn with_session_with_client(
+        &self,
+        session: AccessTokenResponseSchema,
+        http: reqwest::Client,
+    ) -> Result<JwtRefreshStream, AuthError> {
+        validate_session(&session)?;
+        let client = ApiClient::new_unauthenticated_with_client(
+            &self.config.url,
+            &self.config.api_key,
+            http,
+        )?;
+        Ok(self.stream(client, Action::Initial(Box::new(session))))
+    }
+    /// Load and immediately rotate a stored refresh token. Never falls back to password login.
+    /// # Errors
+    /// Returns missing, corrupt or failed storage and configuration errors.
+    pub async fn resume(&self) -> Result<JwtRefreshStream, AuthError> {
+        self.resume_with_client(crate::auth_client::default_client()?)
+            .await
+    }
+    /// # Errors
+    /// Returns storage, session validation or project configuration errors.
+    pub async fn resume_with_client(
+        &self,
+        http: reqwest::Client,
+    ) -> Result<JwtRefreshStream, AuthError> {
+        let store = self.store.as_ref().ok_or(SessionStoreError::Missing)?;
+        let session = store.load().await?.ok_or(SessionStoreError::Missing)?;
+        validate_session(&session)?;
+        let client = ApiClient::new_unauthenticated_with_client(
+            &self.config.url,
+            &self.config.api_key,
+            http,
+        )?;
+        Ok(self.stream(
             client,
-            token_body: params,
-            max_reconnect_attempts,
-            current_reconnect_attempts: 0,
-            background_tasks: JoinSet::new(),
+            Action::Refresh(
+                session
+                    .refresh_token
+                    .ok_or(AuthError::InvalidSession("missing refresh token"))?,
+                tokio::time::Instant::now(),
+            ),
+        ))
+    }
+    fn stream(&self, client: ApiClient, action: Action) -> JwtRefreshStream {
+        JwtRefreshStream {
+            client,
+            action: Some(action),
+            tasks: JoinSet::new(),
+            store: self.store.clone(),
+            terminated: false,
+            attempts: 0,
+            max_attempts: usize::from(self.config.max_reconnect_attempts).max(1),
             reconnect_interval: self.config.reconnect_interval,
-        })
+            next_attempt: tokio::time::Instant::now(),
+        }
     }
 }
-
+#[derive(Clone)]
+enum Action {
+    Login(LoginCredentials),
+    Initial(Box<AccessTokenResponseSchema>),
+    Refresh(String, tokio::time::Instant),
+}
+#[expect(
+    clippy::partial_pub_fields,
+    reason = "The client remains public while refresh scheduling is private implementation state."
+)]
 pub struct JwtRefreshStream {
-    pub api_key: String,
     pub client: ApiClient,
-    pub token_body: LoginCredentials,
-    pub max_reconnect_attempts: usize,
-    pub current_reconnect_attempts: usize,
-    pub background_tasks: JoinSet<Result<AccessTokenResponseSchema, RefreshStreamError>>,
-    pub reconnect_interval: Duration,
+    action: Option<Action>,
+    tasks: JoinSet<Result<(AccessTokenResponseSchema, tokio::time::Instant), RefreshStreamError>>,
+    store: Option<Arc<dyn SessionStore>>,
+    terminated: bool,
+    attempts: usize,
+    max_attempts: usize,
+    reconnect_interval: Duration,
+    next_attempt: tokio::time::Instant,
 }
-
 impl JwtRefreshStream {
-    fn login_request(&self) -> Result<Request<AccessTokenResponseSchema>, RefreshStreamError> {
-        let req = self
-            .client
-            .build_request(&TokenRequest::Password(self.token_body.clone().into()))?;
-        Ok(req)
-    }
-
-    fn spawn_login_task(&mut self, delay: Option<core::time::Duration>) {
-        let Ok(request) = self.login_request() else {
-            tracing::warn!("Failed to build login request");
-            return;
-        };
-        let task = async move {
-            if let Some(duration) = delay {
-                tokio::time::sleep(duration).await;
+    fn spawn(&mut self, action: Action) {
+        let client = self.client.clone();
+        let store = self.store.clone();
+        let next_attempt = self.next_attempt;
+        self.tasks.spawn(async move {
+            tokio::time::sleep_until(next_attempt).await;
+            let session = match action {
+                Action::Login(credentials) => client.sign_in_with_password(&credentials).await?,
+                Action::Initial(session) => *session,
+                Action::Refresh(token, deadline) => {
+                    tokio::time::sleep_until(deadline).await;
+                    client.refresh_session(&token).await?
+                }
+            };
+            validate_session(&session)?;
+            // Anchor expiry to token receipt, not a later consumer poll or store write.
+            let remaining = session.expires_at.map_or_else(
+                || session.expires_in.unwrap_or(0),
+                |expiry| expiry.saturating_sub(chrono::Utc::now().timestamp()),
+            );
+            let deadline = refresh_deadline(calculate_refresh_sleep_duration(
+                u64::try_from(remaining).unwrap_or(0),
+            ))?;
+            if let Some(store) = store {
+                store.save(&session).await.map_err(AuthError::from)?;
             }
-            auth_request(request).await
-        };
-        self.background_tasks.spawn(task);
-    }
-
-    fn spawn_refresh_task(&mut self, access_token: &AccessTokenResponseSchema) {
-        // Attempt to extract refresh_token
-        let Some(refresh_token) = access_token.refresh_token.clone() else {
-            tracing::warn!("`refresh_token` not present");
-            return;
-        };
-
-        // Attempt to extract expires_in
-        let Some(expires_in) = access_token.expires_in else {
-            tracing::warn!("`expires_in` not present");
-            return;
-        };
-
-        let token_request = TokenRequest::RefreshToken(RefreshTokenGrant { refresh_token });
-
-        // Attempt to build the request
-        let Ok(request) = self.client.build_request(&token_request) else {
-            tracing::warn!("could not build refresh task request");
-            return;
-        };
-
-        // Create the asynchronous task
-        let task = async move {
-            let refresh_in =
-                calculate_refresh_sleep_duration(u64::try_from(expires_in).unwrap_or(0));
-            tokio::time::sleep(refresh_in).await;
-            auth_request(request).await
-        };
-
-        // Spawn the background task
-        self.background_tasks.spawn(task);
+            Ok((session, deadline))
+        });
     }
 }
-
 impl Stream for JwtRefreshStream {
     type Item = Result<AccessTokenResponseSchema, RefreshStreamError>;
-
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        match self.background_tasks.poll_join_next(cx) {
-            Poll::Ready(Some(Ok(item))) => {
-                if let Ok(access_token) = &item {
-                    // Reset reconnect attempts on success
-                    self.current_reconnect_attempts = 0;
-                    // Spawn a task to refresh the token before it expires
-                    self.spawn_refresh_task(access_token);
-                } else {
-                    if self.current_reconnect_attempts >= self.max_reconnect_attempts {
-                        tracing::warn!("Max reconnect attempts exceeded; terminating stream");
-                        return Poll::Ready(None);
-                    }
-                    tracing::warn!(
-                        attempts = self.current_reconnect_attempts,
-                        max_attempts = self.max_reconnect_attempts,
-                        "Login failed; retrying"
-                    );
-                    self.current_reconnect_attempts =
-                        self.current_reconnect_attempts.saturating_add(1);
-                    // Spawn a login task with a delay
-                    let duration = self.reconnect_interval;
-                    self.spawn_login_task(Some(duration));
-                }
-                cx.waker().wake_by_ref();
-                Poll::Ready(Some(item))
+        if self.terminated {
+            return Poll::Ready(None);
+        }
+        if self.tasks.is_empty() {
+            if let Some(action) = self.action.clone() {
+                self.spawn(action);
+            } else {
+                self.terminated = true;
+                return Poll::Ready(None);
             }
-            Poll::Ready(Some(Err(_))) => {
-                tracing::warn!("Task panicked; terminating stream");
-                cx.waker().wake_by_ref();
-                Poll::Ready(None)
+        }
+        match self.tasks.poll_join_next(cx) {
+            Poll::Ready(Some(Ok(result))) => {
+                match &result {
+                    Ok((session, deadline)) => {
+                        self.attempts = 0;
+                        self.action = session
+                            .refresh_token
+                            .clone()
+                            .map(|token| Action::Refresh(token, *deadline));
+                    }
+                    Err(RefreshStreamError::AuthError(
+                        AuthError::SessionStore(_) | AuthError::InvalidSession(_),
+                    )) => {
+                        self.terminated = true;
+                    }
+                    Err(_) => {
+                        let deadline = match refresh_deadline(self.reconnect_interval) {
+                            Ok(deadline) => deadline,
+                            Err(error) => {
+                                self.terminated = true;
+                                return Poll::Ready(Some(Err(error.into())));
+                            }
+                        };
+                        self.next_attempt = deadline;
+                        self.attempts = self.attempts.saturating_add(1);
+                        if self.attempts >= self.max_attempts {
+                            self.terminated = true;
+                        }
+                        if let Some(Action::Refresh(_, next_refresh)) = self.action.as_mut() {
+                            *next_refresh = deadline;
+                        }
+                    }
+                }
+                Poll::Ready(Some(result.map(|(session, _deadline)| session)))
+            }
+            Poll::Ready(Some(Err(error))) => {
+                self.terminated = true;
+                Poll::Ready(Some(Err(RefreshStreamError::Task(error))))
             }
             Poll::Ready(None) => {
-                // No tasks left; start the initial login attempt
-                if self.current_reconnect_attempts >= self.max_reconnect_attempts {
-                    tracing::warn!("Max reconnect attempts exceeded; terminating stream");
-                    return Poll::Ready(None);
-                }
-                tracing::debug!("No tasks running; attempting initial login");
-                self.current_reconnect_attempts = self.current_reconnect_attempts.saturating_add(1);
-                self.spawn_login_task(None);
-                // Yield control to allow the task to start
-                cx.waker().wake_by_ref();
-                Poll::Pending
+                self.terminated = true;
+                Poll::Ready(None)
             }
             Poll::Pending => Poll::Pending,
         }
     }
 }
-
-async fn auth_request(
-    request: Request<AccessTokenResponseSchema>,
-) -> Result<AccessTokenResponseSchema, RefreshStreamError> {
-    let res = request.execute().await?.json().await?;
-    Ok(res)
+fn refresh_deadline(delay: Duration) -> Result<tokio::time::Instant, AuthError> {
+    tokio::time::Instant::now()
+        .checked_add(delay)
+        .ok_or(AuthError::InvalidSession(
+            "duration exceeds the monotonic clock range",
+        ))
 }
-
-fn calculate_refresh_sleep_duration(expires_in: u64) -> Duration {
-    Duration::from_secs(expires_in).div(2)
+const fn calculate_refresh_sleep_duration(expires_in: u64) -> Duration {
+    let half_lifetime = match expires_in.checked_div(2) {
+        Some(seconds) => seconds,
+        None => 0,
+    };
+    Duration::from_secs(half_lifetime)
 }
-
-/// A login or refresh attempt failed. The stream retries until `max_reconnect_attempts`.
 #[derive(Debug, Error)]
 pub enum RefreshStreamError {
     #[error("Auth error: {0}")]
     AuthError(#[from] AuthError),
+    #[error("Authentication task failed")]
+    Task(#[source] tokio::task::JoinError),
 }
-
 #[derive(Debug, Error)]
 pub enum SignInError {
     #[error(transparent)]
-    InvalidHeaderValue(#[from] InvalidHeaderValue),
-
+    InvalidHeaderValue(#[from] reqwest::header::InvalidHeaderValue),
     #[error(transparent)]
     ReqwestError(#[from] reqwest::Error),
-
     #[error(transparent)]
     UrlParseError(#[from] url::ParseError),
 }
@@ -262,7 +314,6 @@ mod auth_tests {
             .unwrap()
             .unwrap();
 
-        dbg!(&response);
         assert!(response.is_ok());
         let auth_response = response.unwrap();
         assert_eq!(auth_response.access_token.unwrap(), access_token);
@@ -332,7 +383,8 @@ mod auth_tests {
             .await
             .unwrap();
 
-        assert!(response.is_none());
+        response.unwrap().unwrap_err();
+        assert!(stream.next().await.is_none());
     }
 
     #[rstest]
@@ -367,7 +419,6 @@ mod auth_tests {
             .unwrap()
             .unwrap();
 
-        dbg!(&response);
         assert!(response.is_ok());
         let auth_response = response.unwrap();
         assert_eq!(auth_response.refresh_token.unwrap(), "some-refresh-token");
@@ -406,7 +457,6 @@ mod auth_tests {
             .await
             .unwrap()
             .unwrap();
-        dbg!(&response1);
         assert!(response1.is_ok());
         let auth_response1 = response1.unwrap();
         assert_eq!(auth_response1.access_token.unwrap(), first_access_token);
@@ -420,7 +470,6 @@ mod auth_tests {
             .await
             .unwrap()
             .unwrap();
-        dbg!(&response2);
         assert!(response2.is_ok());
         let auth_response2 = response2.unwrap();
         assert_eq!(auth_response2.access_token.unwrap(), new_access_token);

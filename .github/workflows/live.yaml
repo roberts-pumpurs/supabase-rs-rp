@@ -1,0 +1,50 @@
+name: live
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  live:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+      - name: Setup repo
+        uses: ./.github/actions/setup-repo
+        with:
+          toolchain: "1.88.0"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+      - name: Start repository fixture stack
+        # The CLI's successful startup summary contains local credentials.
+        shell: bash
+        run: |
+          if ! supabase start > "$RUNNER_TEMP/supabase-fixture-start.log" 2>&1; then
+            echo 'Fixture startup failed; credential-bearing CLI output withheld.' >&2
+            exit 1
+          fi
+      - name: Run real-service acceptance
+        run: cargo xtask live
+      - name: Stop only repository fixtures
+        if: always()
+        shell: bash
+        run: |
+          supabase stop --project-id supabase-rs-utils-fixtures --no-backup > "$RUNNER_TEMP/supabase-fixture-stop.log" 2>&1
+          rm -f "$RUNNER_TEMP/supabase-fixture-start.log" "$RUNNER_TEMP/supabase-fixture-stop.log"

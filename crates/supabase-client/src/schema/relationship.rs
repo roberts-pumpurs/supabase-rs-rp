@@ -113,11 +113,12 @@ impl<A: EmbedPath, B: EmbedPath<Owner = A::Selected, Source = A::Target>> Path<A
         clippy::unused_self,
         reason = "The fluent path supplies the final target type for column inference."
     )]
-    pub fn column<K>(self, _: super::Key<K>) -> <B::Target as super::ColumnByKey<K>>::Column
+    pub fn column<K, N, C>(self, _: super::Key<K, N>) -> C
     where
-        B::Target: super::ColumnByKey<K>,
+        N: super::KeyName<Key = K>,
+        B::Target: super::selection::SelectedColumn<N, Column = C>,
     {
-        <B::Target as super::ColumnByKey<K>>::COLUMN
+        <B::Target as super::selection::SelectedColumn<N>>::COLUMN
     }
     /// Compose another handle from the final selected child.
     pub const fn then<H: EmbedPath<Owner = B::Selected, Source = B::Target>>(

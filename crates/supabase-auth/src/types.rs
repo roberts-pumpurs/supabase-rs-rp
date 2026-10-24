@@ -768,7 +768,7 @@ pub struct SAMLConfiguration {
 }
 
 /// Response schema for access and refresh tokens.
-#[derive(Debug, Serialize, Deserialize, Clone, TypedBuilder)]
+#[derive(Serialize, Deserialize, Clone, TypedBuilder)]
 pub struct AccessTokenResponseSchema {
     /// A valid JWT that will expire in `expires_in` seconds.
     #[serde(rename = "access_token")]
@@ -804,6 +804,17 @@ pub struct AccessTokenResponseSchema {
     #[serde(rename = "user")]
     #[builder(setter(strip_option), default)]
     pub user: Option<UserSchema>,
+}
+
+impl core::fmt::Debug for AccessTokenResponseSchema {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("AccessTokenResponseSchema")
+            .field("access_token", &"[REDACTED]")
+            .field("refresh_token", &"[REDACTED]")
+            .field("expires_in", &self.expires_in)
+            .field("expires_at", &self.expires_at)
+            .finish_non_exhaustive()
+    }
 }
 
 /// Response indicating a weak password.

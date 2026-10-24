@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Breaking
+
+- Regenerate bindings with the matching runtime. Generated `Relation` implementations now provide
+  the required `ColumnLookup` associated type; the snapshot format remains version 4.
+
+### Added
+
+- Concrete `select!` column errors name the SQL schema and table and list the sorted valid Rust
+  identifiers, including computed fields and raw keyword identifiers. Generated table-local lookup
+  dispatch preserves aliases, cross-crate schemas, embedded selections, and generic key-bound roots.
+
+### Fixed
+
+- Use `Self` in generated row projection implementations instead of repeating the row type, keeping
+  generated bindings compatible with strict `clippy::use_self` without a blanket lint suppression.
+- Resolve configured runtime paths before lookup generics, including renamed dependencies called `Name` or `Selected`.
+- Keep caller-selected derives without forcing `Eq` onto SQL types and custom overrides.
+
 ## [0.14.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-codegen-v0.13.1...rp-supabase-codegen-v0.14.0) - 2026-10-24
 
 ### Breaking

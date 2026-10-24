@@ -1,29 +1,35 @@
-error[E0277]: no column `title` on `rp_supabase_codegen_example::database::public::tables::messages::Row`
- --> tests/ui/select_unknown_column.rs:5:44
+error[E0277]: no column `title` on table `public.messages`
+ --> tests/ui/select_unknown_column.rs:6:35
   |
-5 |     let _ = select!(messages::Row => { id, title });
-  |                                            ^^^^^ unknown column
+6 |     let _ = select!(Root => { id, title });
+  |                                   ^^^^^ unknown column
   |
-  = help: the trait `rp_supabase_client::schema::selection::SelectedColumn<title>` is not implemented for `rp_supabase_codegen_example::database::public::tables::messages::Row`
-  = note: valid names are the items of the `columns` module next to `rp_supabase_codegen_example::database::public::tables::messages::Row`
-note: required by a bound in `rp_supabase_client::schema::selection::column`
- --> $WORKSPACE/crates/supabase-client/src/schema/selection.rs
+  = help: the trait `rp_supabase_codegen_example::database::public::tables::messages::SelectedColumn<title>` is not implemented for `rp_supabase_codegen_example::database::public::tables::messages::Row`
+  = note: valid columns: amount, body, created_at, excerpt, id, message_meta, metadata, mood, note, tags
+note: required by a bound in `rp_supabase_codegen_example::database::public::tables::messages::ColumnLookup::column`
+ --> $OUT_DIR[rp-supabase-codegen-example]/database.rs
   |
-  | pub fn column<R: SelectedColumn<N, Column = C>, N, C>(_: RelationToken<R>, _: N) -> Scalar<C> {
-  |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `column`
+  |                 pub fn column<Name, Selected>(
+  |                        ------ required by a bound in this associated function
+...
+  |                     Row: SelectedColumn<Name, Column = Selected>,
+  |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ColumnLookup::column`
   = note: this error originates in the macro `select` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0277]: no column `lable` on `rp_supabase_codegen_example::database::public::tables::addresses::Row`
- --> tests/ui/select_unknown_column.rs:6:68
+error[E0277]: no column `lable` on table `public.addresses`
+ --> tests/ui/select_unknown_column.rs:7:68
   |
-6 |     let _ = select!(orders::Row => { id, billing: orders_billing { lable } });
+7 |     let _ = select!(orders::Row => { id, billing: orders_billing { lable } });
   |                                                                    ^^^^^ unknown column
   |
-  = help: the trait `rp_supabase_client::schema::selection::SelectedColumn<lable>` is not implemented for `rp_supabase_codegen_example::database::public::tables::addresses::Row`
-  = note: valid names are the items of the `columns` module next to `rp_supabase_codegen_example::database::public::tables::addresses::Row`
-note: required by a bound in `rp_supabase_client::schema::selection::column`
- --> $WORKSPACE/crates/supabase-client/src/schema/selection.rs
+  = help: the trait `rp_supabase_codegen_example::database::public::tables::addresses::SelectedColumn<lable>` is not implemented for `rp_supabase_codegen_example::database::public::tables::addresses::Row`
+  = note: valid columns: country_id, id, label
+note: required by a bound in `rp_supabase_codegen_example::database::public::tables::addresses::ColumnLookup::column`
+ --> $OUT_DIR[rp-supabase-codegen-example]/database.rs
   |
-  | pub fn column<R: SelectedColumn<N, Column = C>, N, C>(_: RelationToken<R>, _: N) -> Scalar<C> {
-  |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `column`
+  |                 pub fn column<Name, Selected>(
+  |                        ------ required by a bound in this associated function
+...
+  |                     Row: SelectedColumn<Name, Column = Selected>,
+  |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ColumnLookup::column`
   = note: this error originates in the macro `select` (in Nightly builds, run with -Z macro-backtrace for more info)

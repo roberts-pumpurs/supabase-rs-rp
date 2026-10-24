@@ -1,0 +1,15 @@
+error[E0425]: cannot find type `orders_billng` in module `orders::relationships`
+ --> tests/ui/projection_unknown_relationship.rs:7:47
+  |
+7 |         matched: empty(orders::relationships::orders_billng),
+  |                                               ^^^^^^^^^^^^^
+  |
+ ::: $OUT_DIR[rp-supabase-codegen-example]/database.rs
+  |
+  |                 pub struct orders_billing;
+  |                 ------------------------- similarly named struct `orders_billing` defined here
+  |
+help: a struct with a similar name exists
+  |
+7 |         matched: empty(orders::relationships::orders_billing),
+  |                                                          +

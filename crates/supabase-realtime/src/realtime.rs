@@ -1,18 +1,12 @@
-use alloc::sync::Arc;
+use crate::message;
 use core::marker::PhantomData;
-use core::task::Poll;
 use futures::future::Either;
 use serde::de::DeserializeOwned;
 
-use fastwebsockets::{Frame, WebSocketError};
-use futures::stream::FuturesUnordered;
 use futures::{SinkExt as _, Stream, StreamExt as _};
 use rp_supabase_auth::types::LoginCredentials;
-use tokio::sync::Mutex;
-use tokio::time::timeout;
-use tokio_stream::wrappers::IntervalStream;
 
-use crate::connection::WsSupabaseConnection;
+use crate::driver::{ConnectionOptions, RealtimeStream};
 use crate::error::SupabaseRealtimeError;
 use crate::message::access_token::AccessToken;
 use crate::message::phx_join::PostgresChanges;
@@ -20,14 +14,13 @@ use crate::message::phx_reply::PhxReply;
 use crate::message::postgres_changes::PostgresChange;
 use crate::message::presence_inner::PresenceInner;
 use crate::message::{ProtocolMessage, ProtocolPayload, broadcast, phx_join};
-use crate::{connection, error, message};
 
 pub struct DbUpdates;
 pub struct Broadcast;
 pub struct Presence;
 
 pub struct RealtimeConnectionClient<T> {
-    tx: futures::channel::mpsc::UnboundedSender<ProtocolPayload>,
+    tx: futures::channel::mpsc::Sender<ProtocolPayload>,
     _t: PhantomData<T>,
 }
 
@@ -42,11 +35,15 @@ impl RealtimeConnectionClient<DbUpdates> {
     ) -> Result<(), futures::channel::mpsc::SendError> {
         let join = phx_join::PhxJoin {
             config: phx_join::JoinConfig {
+                private: false,
                 broadcast: phx_join::BroadcastConfig {
                     self_item: false,
                     ack: false,
                 },
-                presence: phx_join::PresenceConfig { key: String::new() },
+                presence: phx_join::PresenceConfig {
+                    enabled: false,
+                    key: String::new(),
+                },
                 postgres_changes: join,
             },
             access_token: None,
@@ -66,11 +63,13 @@ impl RealtimeConnectionClient<Presence> {
     ) -> Result<(), futures::channel::mpsc::SendError> {
         let join = phx_join::PhxJoin {
             config: phx_join::JoinConfig {
+                private: false,
                 broadcast: phx_join::BroadcastConfig {
                     self_item: false,
                     ack: false,
                 },
                 presence: phx_join::PresenceConfig {
+                    enabled: true,
                     key: unique_user_key.unwrap_or_default(),
                 },
                 postgres_changes: Vec::new(),
@@ -116,8 +115,12 @@ impl RealtimeConnectionClient<Broadcast> {
     ) -> Result<(), futures::channel::mpsc::SendError> {
         let join = phx_join::PhxJoin {
             config: phx_join::JoinConfig {
+                private: false,
                 broadcast: join,
-                presence: phx_join::PresenceConfig { key: String::new() },
+                presence: phx_join::PresenceConfig {
+                    enabled: false,
+                    key: String::new(),
+                },
                 postgres_changes: Vec::new(),
             },
             access_token: None,
@@ -141,6 +144,8 @@ pub struct RealtimeConnection<T> {
     topic: String,
     config: rp_supabase_auth::jwt_stream::SupabaseAuthConfig,
     _t: PhantomData<T>,
+    options: ConnectionOptions,
+    http: Option<reqwest::Client>,
 }
 
 type RealtimeStreamType = Result<ProtocolMessage, SupabaseRealtimeError>;
@@ -165,140 +170,145 @@ impl RealtimeConnection<Broadcast> {
 }
 
 impl<T> RealtimeConnection<T> {
-    const HEARTBEAT_PERIOD: core::time::Duration = core::time::Duration::from_secs(20);
-
     fn with_topic(config: rp_supabase_auth::jwt_stream::SupabaseAuthConfig, topic: &str) -> Self {
         Self {
             topic: ["realtime", topic].join(":"),
             config,
             _t: PhantomData,
+            options: ConnectionOptions::default(),
+            http: None,
         }
     }
 
-    fn heartbeat_stream() -> futures::stream::BoxStream<'static, RealtimeStreamType> {
-        let mut interval = tokio::time::interval(Self::HEARTBEAT_PERIOD);
-        interval.reset();
-        IntervalStream::new(interval)
-            .fuse()
-            .map(move |_s| message::ProtocolMessage {
-                topic: "phoenix".to_owned(),
-                payload: message::ProtocolPayload::Heartbeat(message::heartbeat::Heartbeat),
-                ref_field: None,
-                join_ref: None,
-            })
-            .map(Ok)
-            .boxed()
+    #[must_use]
+    pub const fn with_options(mut self, options: ConnectionOptions) -> Self {
+        self.options = options;
+        self
+    }
+
+    #[must_use]
+    pub fn with_auth_client(mut self, client: reqwest::Client) -> Self {
+        self.http = Some(client);
+        self
     }
 
     /// Connects an authenticated realtime channel and starts its outgoing streams.
     ///
     /// # Errors
     ///
-    /// Returns an error if URL construction, authentication, or the websocket connection fails.
+    /// Returns an error if URL construction or the websocket connection fails.
+    /// Authentication failures are delivered through the returned stream.
     #[tracing::instrument(skip_all, err)]
     pub async fn connect(
-        self,
+        mut self,
         login_info: LoginCredentials,
-    ) -> Result<
-        (
-            impl Stream<Item = RealtimeStreamType>,
-            RealtimeConnectionClient<T>,
-        ),
-        SupabaseRealtimeError,
-    > {
-        let anon_key = &self.config.api_key;
-        let realtime_url = self
-            .config
-            .url
-            .join(format!("realtime/v1/websocket?apikey={anon_key}&vsn=1.0.0").as_str())?;
-
-        let mut auth_stream = rp_supabase_auth::jwt_stream::JwtStream::new(self.config.clone())
-            .sign_in(login_info)?;
-        let mut latest_access_token = loop {
-            match auth_stream.next().await {
-                Some(Ok(new_latest_access_token)) => {
-                    let Some(access_token) = new_latest_access_token.access_token else {
-                        tracing::error!("access token was not present!");
-                        continue;
-                    };
-                    break access_token;
-                }
-                Some(Err(err)) => {
-                    tracing::error!(?err, "initial jwt fetch err");
-                }
-                None => return Err(error::SupabaseRealtimeError::JwtStreamClosedUnexpectedly),
-            }
+    ) -> Result<(RealtimeStream, RealtimeConnectionClient<T>), SupabaseRealtimeError> {
+        let jwt = rp_supabase_auth::jwt_stream::JwtStream::new(self.config.clone());
+        let auth_stream = match self.http.take() {
+            Some(http) => jwt.sign_in_with_client(login_info, http)?,
+            None => jwt.sign_in(login_info)?,
         };
+        self.connect_with_auth_stream(auth_stream).await
+    }
 
-        let mut ref_counter = 0_u64;
-        let mut join_ref_counter = 0_u64;
-        let (tx, rx) = futures::channel::mpsc::unbounded();
+    /// Connect using an existing OAuth, anonymous, or MFA-upgraded session.
+    ///
+    /// # Errors
+    /// Returns invalid-session, URL, or WebSocket setup errors.
+    pub async fn connect_with_session(
+        mut self,
+        session: rp_supabase_auth::types::AccessTokenResponseSchema,
+    ) -> Result<(RealtimeStream, RealtimeConnectionClient<T>), SupabaseRealtimeError> {
+        let jwt = rp_supabase_auth::jwt_stream::JwtStream::new(self.config.clone());
+        let auth_stream = match self.http.take() {
+            Some(http) => jwt.with_session_with_client(session, http)?,
+            None => jwt.with_session(session)?,
+        };
+        self.connect_with_auth_stream(auth_stream).await
+    }
+
+    /// Connect with a refresh stream configured by the caller, including its session store.
+    ///
+    /// # Errors
+    /// Returns URL or WebSocket setup errors. Authentication errors arrive on the stream.
+    pub async fn connect_with_auth_stream(
+        self,
+        auth_stream: rp_supabase_auth::jwt_stream::JwtRefreshStream,
+    ) -> Result<(RealtimeStream, RealtimeConnectionClient<T>), SupabaseRealtimeError> {
+        let mut realtime_url = self.config.url.join("realtime/v1/websocket")?;
+        realtime_url
+            .query_pairs_mut()
+            .append_pair("apikey", &self.config.api_key)
+            .append_pair("vsn", "1.0.0");
+        let mut latest_access_token = String::new();
+
+        let (tx, rx) = futures::channel::mpsc::channel(self.options.command_capacity.max(1));
         let topic = self.topic.clone();
         let input_stream = rx
             .map(move |item| {
-                ref_counter = ref_counter.wrapping_add(1);
-                join_ref_counter = join_ref_counter.wrapping_add(1);
-                message::ProtocolMessage {
+                Ok(message::ProtocolMessage {
                     topic: topic.clone(),
                     payload: item,
-                    ref_field: Some(ref_counter.to_string()),
-                    join_ref: Some(join_ref_counter.to_string()),
-                }
+                    ref_field: None,
+                    join_ref: None,
+                })
             })
-            .map(Ok)
             .boxed();
 
-        let heartbeat_stream = Self::heartbeat_stream();
-
         let topic = self.topic.clone();
-        let access_token_stream = {
+        let mut access_token_stream = {
             auth_stream
-                .filter_map(move |item| {
-                    let topic = topic.clone();
-                    async move {
-                        item.map(|item| {
-                            if let Some(access_token) = item.access_token {
-                                return Some(message::ProtocolMessage {
-                                    topic: topic.clone(),
-                                    payload: message::ProtocolPayload::AccessToken(AccessToken {
-                                        access_token,
-                                    }),
-                                    ref_field: None,
-                                    join_ref: None,
-                                });
-                            }
-                            None
-                        })
-                        .map_err(SupabaseRealtimeError::from)
-                        .transpose()
-                    }
+                .map(move |item| {
+                    let token = item.map_err(SupabaseRealtimeError::from)?;
+                    let access_token = token
+                        .access_token
+                        .ok_or(SupabaseRealtimeError::JwtStreamClosedUnexpectedly)?;
+                    Ok(message::ProtocolMessage {
+                        topic: topic.clone(),
+                        payload: message::ProtocolPayload::AccessToken(AccessToken {
+                            access_token,
+                        }),
+                        ref_field: None,
+                        join_ref: None,
+                    })
                 })
+                .chain(futures::stream::once(async {
+                    Err(SupabaseRealtimeError::JwtStreamClosedUnexpectedly)
+                }))
                 .boxed()
         };
-        let input_stream =
-            futures::stream::select_all([input_stream, heartbeat_stream, access_token_stream])
-                .map(move |mut item| {
-                    if let Ok(item) = &mut item {
-                        if let message::ProtocolPayload::AccessToken(at) = &mut item.payload {
-                            latest_access_token = at.access_token.clone();
-                        }
-                        item.set_access_token(&latest_access_token);
+        // Do not send queued joins until authentication supplies a usable token.
+        // Authentication errors remain observable while its own retry policy runs.
+        let input_stream = async_stream::stream! {
+            while let Some(item) = access_token_stream.next().await {
+                let authenticated = item.is_ok();
+                let terminal = matches!(&item, Err(SupabaseRealtimeError::JwtStreamClosedUnexpectedly));
+                yield item;
+                if terminal { return; }
+                if authenticated { break; }
+            }
+            let mut inputs = futures::stream::select_all([input_stream, access_token_stream]);
+            while let Some(item) = inputs.next().await {
+                yield item;
+            }
+        }.boxed().map(
+            move |mut item| {
+                if let Ok(item) = &mut item {
+                    if let message::ProtocolPayload::AccessToken(at) = &mut item.payload {
+                        latest_access_token = at.access_token.clone();
                     }
-                    item
-                })
-                .map(move |mut item| {
-                    ref_counter = ref_counter.saturating_add(1);
-                    if let Ok(item) = &mut item {
-                        item.ref_field = Some(ref_counter.to_string());
-                    }
-                    item
-                });
+                    item.set_access_token(&latest_access_token);
+                }
+                item
+            },
+        );
 
         let client = RealtimeConnectionClient {
             tx,
             _t: PhantomData,
         };
         let output_stream = RealtimeBaseConnection::new(realtime_url)
+            .with_options(self.options)
             .connect(input_stream)
             .await?;
         Ok((output_stream, client))
@@ -476,198 +486,33 @@ impl RealtimeConnection<Presence> {
 }
 pub struct RealtimeBaseConnection {
     url: url::Url,
+    options: ConnectionOptions,
 }
 
 impl RealtimeBaseConnection {
     #[must_use]
-    pub const fn new(url: url::Url) -> Self {
-        Self { url }
+    pub fn new(url: url::Url) -> Self {
+        Self {
+            url,
+            options: ConnectionOptions::default(),
+        }
     }
 
-    /// Connect to a supabase realtime channel
+    #[must_use]
+    pub const fn with_options(mut self, options: ConnectionOptions) -> Self {
+        self.options = options;
+        self
+    }
+
+    /// Starts the reconnecting protocol driver.
     ///
     /// # Errors
-    /// - cannot connect
-    pub async fn connect<S: Stream<Item = RealtimeStreamType> + Unpin>(
-        self,
-        mut input_stream: S,
-    ) -> Result<impl Stream<Item = RealtimeStreamType>, error::SupabaseRealtimeError> {
-        tracing::info!(url =? self.url.as_str(), "Starting RealtimeConnection::connect");
-
-        let con = Arc::new(Mutex::new(connection::connect(&self.url).await?));
-        tracing::info!("WebSocket connection established");
-
-        let mut write_futures = FuturesUnordered::new();
-        let mut read_futures = FuturesUnordered::new();
-        let (tx, mut rx) = futures::channel::mpsc::unbounded();
-        let read_task = {
-            let con = Arc::clone(&con);
-            async move {
-                let con = Arc::clone(&con);
-                read_from_ws(&con, tx).await
-            }
-        };
-        read_futures.push(read_task);
-
-        let stream_to_return = futures::stream::poll_fn(move |cx| {
-            match input_stream.poll_next_unpin(cx) {
-                Poll::Ready(Some(message_to_send)) => {
-                    let con = Arc::clone(&con);
-                    match message_to_send {
-                        Ok(message) => {
-                            write_futures.push(async move {
-                                let con = Arc::clone(&con);
-                                send(message, &con).await
-                            });
-                        }
-                        Err(err) => {
-                            cx.waker().wake_by_ref();
-                            return Poll::Ready(Some(Err(err)));
-                        }
-                    }
-                }
-                Poll::Ready(None) => return Poll::Ready(None),
-                Poll::Pending => {}
-            }
-
-            match read_futures.poll_next_unpin(cx) {
-                Poll::Ready(result) => {
-                    tracing::error!(?result, "Read task completed");
-                    return Poll::Ready(None);
-                }
-                Poll::Pending => {}
-            }
-
-            match write_futures.poll_next_unpin(cx) {
-                Poll::Ready(Some(res)) => match res {
-                    Ok(()) => {
-                        tracing::debug!("Message sent successfully");
-                    }
-                    Err(err) => {
-                        tracing::warn!(?err, "Error sending message");
-                        if let SupabaseRealtimeError::WebsocketError(err) = &err
-                            && let Err(err) = is_irrecoverable_ws_err(err)
-                        {
-                            tracing::error!(?err, "Irrecoverable error");
-                            return Poll::Ready(None);
-                        }
-                        cx.waker().wake_by_ref();
-                        return Poll::Ready(Some(Err(err)));
-                    }
-                },
-                Poll::Ready(None) | Poll::Pending => {}
-            }
-
-            match rx.poll_next_unpin(cx) {
-                Poll::Ready(Some(item)) => {
-                    tracing::debug!(?item, "Received item");
-                    cx.waker().wake_by_ref();
-                    Poll::Ready(Some(Ok(item)))
-                }
-                Poll::Ready(None) => Poll::Ready(None),
-                Poll::Pending => Poll::Pending,
-            }
-        });
-        Ok(stream_to_return)
-    }
-}
-
-async fn read_from_ws(
-    con: &Mutex<WsSupabaseConnection>,
-    mut tx: futures::channel::mpsc::UnboundedSender<ProtocolMessage>,
-) -> Result<(), WebSocketError> {
-    tracing::info!("Starting read_from_ws task");
-    let duration = core::time::Duration::from_millis(100);
-    loop {
-        let mut con = con.lock().await;
-        let Ok(frame) = timeout(duration, con.read_frame()).await else {
-            continue;
-        };
-        drop(con);
-
-        let mut frame = match frame {
-            Ok(frame) => frame,
-            Err(err) => {
-                if is_irrecoverable_ws_err(&err).is_err() {
-                    return Err(err);
-                }
-                continue;
-            }
-        };
-        let repr = String::from_utf8_lossy(&frame.payload);
-        tracing::debug!(?repr, "Received frame");
-
-        let from_slice = simd_json::from_slice(frame.payload.to_mut());
-        match from_slice {
-            Ok(item) => {
-                let _res = tx.send(item).await;
-            }
-            Err(err) => {
-                let repr = String::from_utf8_lossy(&frame.payload);
-                tracing::error!(?err, payload = ?repr, "Error deserializing data");
-            }
-        }
-    }
-}
-
-async fn send(
-    message_to_send: ProtocolMessage,
-    con: &Mutex<WsSupabaseConnection>,
-) -> Result<(), error::SupabaseRealtimeError> {
-    tracing::debug!(?message_to_send, "Sending message");
-    let message_bytes = simd_json::to_vec(&message_to_send)?;
-    let payload = fastwebsockets::Payload::<'static>::Owned(message_bytes);
-    let frame = Frame::<'static>::text(payload);
-    let mut con = con.lock().await;
-    con.write_frame(frame).await?;
-    drop(con);
-    Ok(())
-}
-
-#[tracing::instrument(skip_all, err)]
-fn is_irrecoverable_ws_err(err: &WebSocketError) -> Result<(), &WebSocketError> {
-    match err {
-        // Here we check for a transient IO error that might be recoverable.
-        // For example, WouldBlock or TimedOut could allow for a retry.
-        WebSocketError::IoError(io_err)
-            if io_err.kind() == std::io::ErrorKind::WouldBlock
-                || io_err.kind() == std::io::ErrorKind::TimedOut =>
-        {
-            // Log and attempt recovery (retry, backoff, etc.)
-            tracing::warn!(
-                "Transient IO error encountered: {}. Attempting recovery...",
-                io_err
-            );
-            Ok(())
-        }
-
-        // All the protocol-level or fatal errors are treated as irrecoverable.
-        WebSocketError::UnexpectedEOF
-        | WebSocketError::InvalidFragment
-        | WebSocketError::InvalidUTF8
-        | WebSocketError::InvalidContinuationFrame
-        | WebSocketError::InvalidStatusCode(_)
-        | WebSocketError::InvalidUpgradeHeader
-        | WebSocketError::InvalidConnectionHeader
-        | WebSocketError::ConnectionClosed
-        | WebSocketError::InvalidCloseFrame
-        | WebSocketError::InvalidCloseCode
-        | WebSocketError::ReservedBitsNotZero
-        | WebSocketError::ControlFrameFragmented
-        | WebSocketError::PingFrameTooLarge
-        | WebSocketError::FrameTooLarge
-        | WebSocketError::InvalidSecWebsocketVersion
-        | WebSocketError::InvalidValue
-        | WebSocketError::MissingSecWebSocketKey
-        // Optionally, if features are enabled:
-        | WebSocketError::HTTPError(_)
-        | WebSocketError::SendError(_)
-        // For any other errors, decide as needed.
-        | WebSocketError::IoError(_)
-        => {
-            // Propagate irrecoverable errors immediately.
-            Err(err)
-        }
+    /// Returns an error if the initial websocket handshake fails.
+    pub async fn connect<S>(self, input: S) -> Result<RealtimeStream, SupabaseRealtimeError>
+    where
+        S: Stream<Item = RealtimeStreamType> + Unpin + Send + 'static,
+    {
+        crate::driver::connect(self.url, input, self.options).await
     }
 }
 

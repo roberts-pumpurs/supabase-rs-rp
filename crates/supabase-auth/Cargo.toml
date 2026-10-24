@@ -20,7 +20,7 @@ workspace = true
 redact.workspace = true
 url.workspace = true
 reqwest.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = ["rt", "time", "sync"] }
 futures.workspace = true
 serde.workspace = true
 simd-json.workspace = true
@@ -28,6 +28,16 @@ thiserror.workspace = true
 tracing.workspace = true
 typed-builder.workspace = true
 chrono.workspace = true
+rp-supabase-http.workspace = true
+base64.workspace = true
+sha2 = "0.11"
+getrandom = "0.4"
+
+[features]
+default = ["rustls"]
+rustls = ["rp-supabase-http/rustls"]
+native-tls = ["rp-supabase-http/native-tls"]
+file-session-store = ["tokio/fs", "tokio/io-util"]
 
 [dev-dependencies]
 rstest.workspace = true
@@ -37,4 +47,7 @@ mockito.workspace = true
 # Path only: cargo drops it on publish, so releasing auth never waits for the mock crate.
 rp-supabase-mock = { path = "../supabase-mock" }
 pretty_assertions.workspace = true
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }
+hmac = "0.13"
+sha1 = "0.11"
+data-encoding = "2"

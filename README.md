@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/roberts-pumpurs/supabase-rs-rp/actions/workflows/test.yaml/badge.svg)](https://github.com/roberts-pumpurs/supabase-rs-rp/actions/workflows/test.yaml) [![Checks](https://github.com/roberts-pumpurs/supabase-rs-rp/actions/workflows/check.yaml/badge.svg)](https://github.com/roberts-pumpurs/supabase-rs-rp/actions/workflows/check.yaml) [![Audit](https://github.com/roberts-pumpurs/supabase-rs-rp/actions/workflows/audit.yaml/badge.svg)](https://github.com/roberts-pumpurs/supabase-rs-rp/actions/workflows/audit.yaml) [![Deny](https://github.com/roberts-pumpurs/supabase-rs-rp/actions/workflows/deny.yaml/badge.svg)](https://github.com/roberts-pumpurs/supabase-rs-rp/actions/workflows/deny.yaml) [![Docs](https://github.com/roberts-pumpurs/supabase-rs-rp/actions/workflows/doc.yaml/badge.svg)](https://github.com/roberts-pumpurs/supabase-rs-rp/actions/workflows/doc.yaml) [![Unused Dependencies](https://github.com/roberts-pumpurs/supabase-rs-rp/actions/workflows/unused-deps.yaml/badge.svg)](https://github.com/roberts-pumpurs/supabase-rs-rp/actions/workflows/unused-deps.yaml) [![Conventional PR](https://github.com/roberts-pumpurs/supabase-rs-rp/actions/workflows/conventional-pr.yaml/badge.svg)](https://github.com/roberts-pumpurs/supabase-rs-rp/actions/workflows/conventional-pr.yaml) [![Release](https://github.com/roberts-pumpurs/supabase-rs-rp/actions/workflows/release-plz.yml/badge.svg)](https://github.com/roberts-pumpurs/supabase-rs-rp/actions/workflows/release-plz.yml) [![crates.io](https://img.shields.io/crates/v/supabase-rp.svg)](https://crates.io/crates/supabase-rp) [![docs.rs](https://img.shields.io/docsrs/supabase-rp)](https://docs.rs/supabase-rp)
 
-Rust crates for [Supabase](https://supabase.com): database (PostgREST), auth, storage, edge functions, and realtime.
+Rust crates for [Supabase](https://supabase.com): database (PostgREST), auth, storage, edge functions, GraphQL, and realtime.
 Use them in async Rust services, CLIs, and tests that talk to a Supabase project.
 Start with the `supabase-rp` crate and plain queries. Add generated, compile-time checked types later if you want them.
 All crates require Rust 1.88 or later.
@@ -40,17 +40,14 @@ Sign in, then call `with_access_token`. The new client sends the user token, so 
 ```rust
 use supabase_rp::auth::types::LoginCredentials;
 
-let login = LoginCredentials::builder()
-    .email("user@example.com".to_owned())
-    .password("password".to_owned())
-    .build();
+let login = LoginCredentials::email("user@example.com".to_owned(), "password".to_owned());
 let session = client.auth().sign_in_with_password(&login).await?;
 let token = session.access_token.ok_or("sign-in returned no access token")?;
 let user_client = client.with_access_token(&token)?;
 let me = user_client.auth().get_user().await?;
 ```
 
-The [supabase-rp README](./crates/supabase-rp/README.md) shows storage, edge functions, and realtime.
+The [supabase-rp README](./crates/supabase-rp/README.md) shows string-based writes, storage, functions, GraphQL, and realtime.
 
 ## When you want compile-time checked queries
 
@@ -65,13 +62,15 @@ Enable the `typed` feature of `supabase-rp` to get the `rp-supabase-client` sche
 
 | Crate | Version | What it does | Use it directly when |
 |-------|---------|--------------|----------------------|
-| [supabase-rp](./crates/supabase-rp/README.md) | [![crates.io](https://img.shields.io/crates/v/supabase-rp.svg)](https://crates.io/crates/supabase-rp) | One `Client` for REST, auth, storage, functions, and realtime configuration | You start a new project. This is the default entry point. |
+| [supabase-rp](./crates/supabase-rp/README.md) | [![crates.io](https://img.shields.io/crates/v/supabase-rp.svg)](https://crates.io/crates/supabase-rp) | One `Client` for HTTP services and realtime configuration | You start a new project. This is the default entry point. |
 | [rp-postgrest](./crates/postgrest/README.md) | [![crates.io](https://img.shields.io/crates/v/rp-postgrest.svg)](https://crates.io/crates/rp-postgrest) | PostgREST query builder with checked execution and typed decoding | You talk to a PostgREST server without the rest of Supabase. |
 | [rp-postgrest-error](./crates/postgrest-error/README.md) | [![crates.io](https://img.shields.io/crates/v/rp-postgrest-error.svg)](https://crates.io/crates/rp-postgrest-error) | PostgREST and PostgreSQL error model | You map database errors in your own code. |
-| [rp-supabase-auth](./crates/supabase-auth/README.md) | [![crates.io](https://img.shields.io/crates/v/rp-supabase-auth.svg)](https://crates.io/crates/rp-supabase-auth) | Supabase Auth API client and token refresh streams | You need auth only, or the full request types (MFA, admin). |
-| [rp-supabase-storage](./crates/supabase-storage/README.md) | [![crates.io](https://img.shields.io/crates/v/rp-supabase-storage.svg)](https://crates.io/crates/rp-supabase-storage) | Storage buckets, objects, and signed URLs | You need storage only. |
+| [rp-supabase-auth](./crates/supabase-auth/README.md) | [![crates.io](https://img.shields.io/crates/v/rp-supabase-auth.svg)](https://crates.io/crates/rp-supabase-auth) | OAuth PKCE, anonymous sessions, stores, refresh, admin, and MFA | You need auth only. |
+| [rp-supabase-storage](./crates/supabase-storage/README.md) | [![crates.io](https://img.shields.io/crates/v/rp-supabase-storage.svg)](https://crates.io/crates/rp-supabase-storage) | Objects, image transforms, signed URLs, resumable uploads | You need storage only. |
 | [rp-supabase-functions](./crates/supabase-functions/README.md) | [![crates.io](https://img.shields.io/crates/v/rp-supabase-functions.svg)](https://crates.io/crates/rp-supabase-functions) | Edge function invocation | You need functions only. |
 | [rp-supabase-realtime](./crates/supabase-realtime/README.md) | [![crates.io](https://img.shields.io/crates/v/rp-supabase-realtime.svg)](https://crates.io/crates/rp-supabase-realtime) | Realtime database changes, broadcast, and presence | You need realtime only. |
+| [rp-supabase-graphql](./crates/supabase-graphql/README.md) | [![crates.io](https://img.shields.io/crates/v/rp-supabase-graphql.svg)](https://crates.io/crates/rp-supabase-graphql) | Typed GraphQL responses with partial errors | You need GraphQL only. |
+| [rp-supabase-http](./crates/supabase-http/README.md) | [![crates.io](https://img.shields.io/crates/v/rp-supabase-http.svg)](https://crates.io/crates/rp-supabase-http) | Shared TLS and rate-limit retry policy | You configure transport behavior across service crates. |
 | [rp-supabase-client](./crates/supabase-client/README.md) | [![crates.io](https://img.shields.io/crates/v/rp-supabase-client.svg)](https://crates.io/crates/rp-supabase-client) | Typed query runtime for generated schemas | You use generated types. |
 | [rp-supabase-client-macros](./crates/supabase-client-macros) | [![crates.io](https://img.shields.io/crates/v/rp-supabase-client-macros.svg)](https://crates.io/crates/rp-supabase-client-macros) | Procedural macros for rp-supabase-client | Never. rp-supabase-client re-exports them. |
 | [rp-supabase-codegen](./crates/supabase-codegen/README.md) | [![crates.io](https://img.shields.io/crates/v/rp-supabase-codegen.svg)](https://crates.io/crates/rp-supabase-codegen) | Generates Rust schema types in `build.rs` | You add typed queries (build dependency). |
@@ -81,14 +80,19 @@ Enable the `typed` feature of `supabase-rp` to get the `rp-supabase-client` sche
 
 | Supabase service | Supported | Limits |
 |------------------|-----------|--------|
-| Database (PostgREST) | Queries, filters, ordering, pagination, counts, inserts, updates, upserts, deletes, RPC | No GraphQL. |
-| Auth | Password, OTP, sign up, refresh, PKCE code exchange, user update, sign out. Request types for MFA and admin endpoints. | No session storage. OAuth redirects need your own redirect handling. |
-| Realtime | Database changes (also typed), broadcast, presence | The websocket does not reconnect; the stream ends when the server closes it. One channel topic per connection. Sign in with email or phone and password only. |
-| Storage | Bucket CRUD, object upload, download, move, copy, remove, list, signed and public URLs | No resumable (TUS) uploads. No image transformations. No S3 protocol. |
-| Edge Functions | Invoke with JSON or raw bodies, custom headers and methods | No streamed request bodies. No multipart helpers. |
+| Database (PostgREST) | Queries, filters, ordering, pagination, counts, writes, RPC, typed decoding | String queries rely on server-side column checks. |
+| Auth | Password, OTP, OAuth PKCE, anonymous sessions, pluggable stores, refresh, admin users/factors, TOTP and phone MFA | The application handles browser redirects. File stores need a private directory. AAL inspection is not signature verification. |
+| Realtime | Typed database changes, broadcast, presence, reconnect, join replay, heartbeat/write/handshake deadlines | No history replay during outages. Use existing sessions or configured refresh streams without another password login. |
+| Storage | Bucket/object operations, signed/public URLs, image transforms, resumable TUS uploads with resume and upsert | No S3 protocol. Mismatched upstream signed-image claims return an error. |
+| Edge Functions | JSON or raw request bodies, custom headers/methods, streamed responses | No streamed request bodies or multipart helpers. |
+| GraphQL | Variables, operation names, typed data, execution errors and partial responses | No GraphQL schema codegen. |
 | Typed codegen | Tables, views, columns, relations, RPC, from a snapshot or a live database | Regenerate after you upgrade `rp-supabase-codegen`. |
 
 Read each crate README for the full list of limits.
+HTTP and WebSocket clients default to rustls and expose an optional native TLS backend.
+HTTP reads retry explicit 429 responses with a bounded `Retry-After` policy.
+Mutation replay requires explicit opt-in; transport failures are never replayed by that policy.
+
 See [docs/comparison.md](./docs/comparison.md) for a comparison with other Rust Supabase clients.
 
 ## Examples
@@ -108,5 +112,14 @@ The [codegen example](./crates/supabase-codegen-example/README.md) shows build-s
 
 ## Supabase instance for local development
 
-1. [Install Supabase CLI](https://supabase.com/docs/guides/cli/getting-started)
-2. Run `supabase start` to run local supabase instance
+1. Install Docker and [Supabase CLI](https://supabase.com/docs/guides/cli/getting-started). CI uses CLI 2.109.1.
+2. Run `supabase start` from this repository. The fixture API uses port 56421 and PostgreSQL uses port 56422.
+3. Run `cargo xtask live` with Python 3.11 or newer.
+
+The command exercises real PKCE email callbacks, session rotation, admin and MFA,
+image transforms, resumed uploads, GraphQL, RLS-protected string CRUD, Edge Functions,
+and Realtime broadcast, presence, and database changes across a container restart.
+It reads credentials from local CLI status without logging them.
+It reuses the fixture's Edge Function or starts a CLI watcher when needed, then stops only its own watcher.
+It removes its temporary Realtime user and restarts only `supabase_realtime_supabase-rs-utils-fixtures`.
+It never resets or stops a stack. Missing prerequisites or failed scenarios fail the command.

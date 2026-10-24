@@ -22,6 +22,7 @@ pub struct ApiClient {
     inner: reqwest::Client,
     url: url::Url,
     headers: header::HeaderMap,
+    retry_policy: rp_supabase_http::RetryPolicy,
 }
 
 /// Creates a new authenticated stream.
@@ -65,6 +66,54 @@ pub fn new_authenticated_stream_with_client(
 }
 
 impl ApiClient {
+    pub(crate) const fn auth_url(&self) -> &url::Url {
+        &self.url
+    }
+    /// Configure bounded retries for explicit rate-limit responses.
+    #[must_use]
+    pub const fn with_retry_policy(mut self, policy: rp_supabase_http::RetryPolicy) -> Self {
+        self.retry_policy = policy;
+        self
+    }
+
+    pub(crate) fn bearer_token(&self) -> Option<&str> {
+        self.headers
+            .get(header::AUTHORIZATION)?
+            .to_str()
+            .ok()?
+            .strip_prefix("Bearer ")
+    }
+
+    /// Create an anonymous user, requiring a complete anonymous session response.
+    ///
+    /// # Errors
+    /// Returns server errors or an invalid-session error for incomplete responses.
+    pub async fn sign_in_anonymously(
+        &self,
+        data: Option<crate::types::UserMetadata>,
+        captcha: Option<crate::types::GoTrueMetaSecurity>,
+    ) -> Result<AccessTokenResponseSchema, AuthError> {
+        let response = self
+            .sign_up(SignupPayload {
+                credentials: None,
+                data,
+                gotrue_meta_security: captcha,
+                pkce: None,
+            })
+            .await?;
+        let SignupResponse::Session(session) = response else {
+            return Err(AuthError::InvalidSession(
+                "anonymous signup returned no session",
+            ));
+        };
+        crate::session_store::validate_session(&session)?;
+        if session.user.as_ref().and_then(|user| user.is_anonymous) != Some(true) {
+            return Err(AuthError::InvalidSession(
+                "anonymous signup returned a non-anonymous user",
+            ));
+        }
+        Ok(session)
+    }
     /// Create a new unauthenticated API client.
     ///
     /// # Errors
@@ -100,6 +149,7 @@ impl ApiClient {
             url: url.join("/auth/v1/")?,
             inner: http,
             headers: base_headers(api_key)?,
+            retry_policy: rp_supabase_http::RetryPolicy::default(),
         })
     }
 
@@ -142,6 +192,7 @@ impl ApiClient {
         Ok(Request {
             builder: reqwest_req,
             result: PhantomData,
+            retry_policy: self.retry_policy,
         })
     }
 
@@ -278,6 +329,7 @@ impl ApiClient {
 pub struct Request<T> {
     builder: reqwest::RequestBuilder,
     result: PhantomData<T>,
+    retry_policy: rp_supabase_http::RetryPolicy,
 }
 
 impl<T> Request<T> {
@@ -297,7 +349,7 @@ impl<T> Request<T> {
         span.record("path", request.url().path());
 
         // execute the request
-        let response = client.execute(request).await?;
+        let response = rp_supabase_http::execute(&client, request, self.retry_policy).await?;
 
         Ok(Response {
             raw: response,
@@ -382,31 +434,11 @@ fn api_error(mut bytes: Vec<u8>, status: reqwest::StatusCode) -> AuthError {
 pub(crate) fn default_client() -> Result<reqwest::Client, AuthError> {
     const KEEP_ALIVE_INTERVAL: core::time::Duration = core::time::Duration::from_secs(15);
 
-    let temp_client = reqwest::Client::builder()
-        .use_rustls_tls()
+    let temp_client = rp_supabase_http::client_builder()
         .http2_keep_alive_interval(KEEP_ALIVE_INTERVAL)
         .http2_keep_alive_while_idle(true)
-        .redirect(same_origin_redirects())
         .build()?;
     Ok(temp_client)
-}
-
-/// Follows a redirect only to the previous URL's origin, up to reqwest's default 10 hops.
-fn same_origin_redirects() -> reqwest::redirect::Policy {
-    const MAX_REDIRECTS: usize = 10;
-    reqwest::redirect::Policy::custom(|attempt| {
-        let same_origin = attempt
-            .previous()
-            .last()
-            .is_some_and(|previous| previous.origin() == attempt.url().origin());
-        if !same_origin {
-            attempt.stop()
-        } else if attempt.previous().len() > MAX_REDIRECTS {
-            attempt.error("too many redirects")
-        } else {
-            attempt.follow()
-        }
-    })
 }
 
 fn base_headers(api_key: &str) -> Result<header::HeaderMap, AuthError> {

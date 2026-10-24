@@ -4,7 +4,7 @@
 
 One entry point for [Supabase](https://supabase.com) from Rust.
 `Client` holds your project URL, your API key, and one shared HTTP connection pool.
-It gives you REST, auth, storage, edge functions, and realtime configuration.
+It gives you REST, auth, storage, edge functions, GraphQL, and realtime configuration.
 
 ## Install
 
@@ -22,15 +22,26 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 | `storage`   | no      | `Client::storage` (buckets, objects, signed URLs)       |
 | `functions` | no      | `Client::functions` (edge functions)                    |
 | `realtime`  | no      | `Client::realtime_config` (websocket channels)          |
+| `graphql`   | no      | `Client::graphql` with typed data and partial errors    |
+| `rustls`    | yes     | rustls for HTTP and WebSocket connections              |
+| `native-tls` | no     | Native TLS when default features are disabled          |
 | `typed`     | no      | Re-exports `rp-supabase-client` as `supabase_rp::typed` (schema runtime only) |
 | `typed-client` | no   | `typed` plus the client API of `rp-supabase-client` (enables `serde_json/arbitrary_precision`) |
 | `test-util` | no      | `rp-postgrest/test-util`, for example `postgrest::Error::from_response` in tests |
-| `full`      | no      | All of the above except `test-util`                     |
+| `full`      | no      | All services and typed-client; does not select a TLS backend |
 
 Each enabled crate is re-exported as a module (see [Module map](#module-map)).
 You need only this one dependency.
 
 The default HTTP client of `Client::new` follows up to 10 redirects, and only to the same origin (scheme, host, port), so credentials never reach another host. `Client::new_with_client` uses your client and its redirect policy unchanged.
+
+HTTP reads retry explicit 429 responses twice by default. The policy honors `Retry-After`
+without shortening server delays. Mutations, streaming request bodies, transport failures,
+and other HTTP statuses are not replayed by default. Use `Client::with_retry_policy`
+to change this policy. `RetryPolicy::none()` disables it.
+
+For native TLS, use `default-features = false, features = ["full", "native-tls"]`.
+rustls takes precedence when both backends are enabled. A supplied HTTP client keeps its own TLS policy.
 
 ## Quickstart
 
@@ -55,10 +66,35 @@ println!("{todos:?}");
 # }
 ```
 
+## String-based writes
+
+Use the same builder for reads and writes. `_json` methods serialize your serde types.
+Filters apply to updates and deletes. The examples request the affected rows.
+
+```rust,no_run
+# #[cfg(feature = "rest")]
+# async fn run(client: supabase_rp::Client) -> Result<(), Box<dyn std::error::Error>> {
+#[derive(serde::Serialize)]
+struct WriteTodo<'a> { title: &'a str }
+#[derive(serde::Deserialize)]
+struct Todo { id: i64, title: String }
+
+let created: Vec<Todo> = client.from("todos")
+    .insert_json(&WriteTodo { title: "before" }).select("id,title").fetch().await?;
+let id = created.first().ok_or("insert returned no rows")?.id.to_string();
+let updated: Vec<Todo> = client.from("todos")
+    .update_json(&WriteTodo { title: "after" }).eq("id", &id)
+    .select("id,title").fetch().await?;
+let deleted: Vec<Todo> = client.from("todos").delete().eq("id", &id)
+    .select("id,title").fetch().await?;
+# Ok(())
+# }
+```
+
 ## Sign in and act as the user
 
 Sign in, then call `with_access_token`.
-The new client sends the user token to REST, auth, storage, and functions, so row level security applies.
+The new client sends the user token to REST, auth, storage, functions, and GraphQL, so row level security applies.
 The `apikey` header keeps the project key. The connection pool is shared.
 
 ```rust,no_run
@@ -77,6 +113,14 @@ user_client.auth().sign_out().await?;
 # Ok(())
 # }
 ```
+Auth also supports anonymous sessions, OAuth PKCE, memory and file session stores,
+admin user management, and TOTP or phone MFA. See the [auth guide](../supabase-auth/README.md).
+After MFA verification, use the returned session's access token to construct the upgraded user client.
+Session stores and AAL claim inspection do not replace server-side authorization.
+
+`Client::admin(service_role_key)` creates an elevated client with explicit server-only credentials.
+It shares the HTTP pool but does not change the user client. Never send service-role keys to untrusted clients.
+
 
 ## Storage
 
@@ -143,13 +187,32 @@ println!("{}", reply.message);
 # }
 ```
 
+## GraphQL
+
+Requires the `graphql` feature. Execution errors can accompany partial data, even with HTTP 200.
+The response preserves both.
+
+```rust,no_run
+# #[cfg(feature = "graphql")]
+# async fn run(client: supabase_rp::Client) -> Result<(), Box<dyn std::error::Error>> {
+#[derive(Debug, serde::Deserialize)]
+struct Data {
+    #[serde(rename = "__typename")]
+    kind: String,
+}
+let response = client.graphql().query("{ __typename }").fetch::<Data>().await?;
+println!("data: {:?}; errors: {:?}", response.data, response.errors);
+# Ok(())
+# }
+```
+
 ## Realtime
 
 Requires the `realtime` feature. `realtime_config` returns the configuration that
 `RealtimeConnection::db_changes`, `presence`, and `broadcast` take. Realtime signs in on its
-own with `LoginCredentials`. If sign-in or a token refresh fails, it retries up to 5 times,
-3 seconds apart. The websocket itself does not reconnect. Change the returned fields to
-override the retry settings.
+own with `LoginCredentials`. Sign-in and refresh retries use the returned auth configuration.
+WebSocket recovery has separate `ConnectionOptions`. It replays channel joins with the latest
+token and restores tracked presence. Messages sent during an outage are not replayed.
 
 ```rust,no_run
 # #[cfg(feature = "realtime")]
@@ -200,6 +263,7 @@ Enable `typed-client` for the client API (authentication helpers and response de
 | `supabase_rp::storage`   | `rp-supabase-storage`  | `storage`   |
 | `supabase_rp::functions` | `rp-supabase-functions` | `functions` |
 | `supabase_rp::realtime`  | `rp-supabase-realtime` | `realtime`  |
+| `supabase_rp::graphql`  | `rp-supabase-graphql`  | `graphql`   |
 | `supabase_rp::typed`     | `rp-supabase-client`   | `typed`     |
 
 The module `supabase_rp::auth` holds the auth types. The method `Client::auth()` returns the auth client.
@@ -213,6 +277,8 @@ The module `supabase_rp::auth` holds the auth types. The method `Client::auth()`
 | [rp-supabase-auth](https://docs.rs/rp-supabase-auth)                   | Supabase Auth API and token refresh        |
 | [rp-supabase-storage](https://docs.rs/rp-supabase-storage)             | Storage buckets, objects, signed URLs      |
 | [rp-supabase-functions](https://docs.rs/rp-supabase-functions)         | Edge function invocation                   |
+| [rp-supabase-graphql](https://docs.rs/rp-supabase-graphql)             | GraphQL requests and partial responses      |
+| [rp-supabase-http](https://docs.rs/rp-supabase-http)                   | Shared TLS and rate-limit retry policy      |
 | [rp-supabase-realtime](https://docs.rs/rp-supabase-realtime)           | Realtime changes, broadcast, presence      |
 | [rp-supabase-client](https://docs.rs/rp-supabase-client)               | Typed runtime for generated schemas        |
 | [rp-supabase-codegen](https://docs.rs/rp-supabase-codegen)             | Rust types generated from your database    |

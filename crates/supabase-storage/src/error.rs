@@ -23,6 +23,9 @@ pub enum StorageError {
     /// The project URL cannot carry path segments (for example `mailto:`).
     #[error("project URL cannot be a base URL")]
     InvalidBaseUrl,
+    /// A resumable upload or image option violated the protocol.
+    #[error("storage protocol error: {0}")]
+    Protocol(&'static str),
     /// The Storage API returned a signed URL without a `?token=` query.
     #[error("signed URL from the storage API has no token: {0:?}")]
     MissingSignedToken(String),
