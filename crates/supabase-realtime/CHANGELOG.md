@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Reconnecting bounded protocol driver with per-topic join replay, fresh references,
+  current auth tokens, heartbeat acknowledgement deadlines, presence retracking and
+  observable connection status. Dropping the stream or explicit shutdown cancels all work.
+- Scheme-driven TCP/TLS with validated IP certificates and optional native TLS backend.
+- Local websocket fault-injection tests and opt-in Supabase restart acceptance scenario.
+- Connect existing OAuth, anonymous, or MFA sessions without password login, or supply a configured refresh stream and session store.
+
+### Changed
+
+- `connect` returns `RealtimeStream`; raw input streams must be `Send + 'static`.
+- Command queues are bounded and apply backpressure. Rejected joins yield `ChannelError`.
+- `JoinConfig` includes `private`; add `private: false` to existing struct literals.
+- Rustls remains default and takes precedence when both TLS backends are enabled.
+- The obsolete fastwebsockets driver and its transport-specific `WebsocketError` and
+  `HyperError` variants are replaced by `Transport(tungstenite::Error)`.
+- Bound complete initial/reconnect handshakes and websocket writes with `connect_timeout`
+  and `write_timeout` options and typed `ConnectTimeout` / `WriteTimeout` errors.
+- Forward current-generation push replies, retain retryable authentication failures,
+  retry transient server join rejections, and wait for PostgreSQL subscription recovery.
+- Presence joins explicitly enable tracking. Raw `PresenceConfig` literals now include `enabled`.
+- Plain WebSocket connections skip certificate loading; test peer setup cancels when client setup fails.
+- Respect an installed rustls crypto provider or select AWS-LC explicitly when providers coexist.
+
 ## [0.11.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-realtime-v0.10.1...rp-supabase-realtime-v0.11.0) - 2026-10-24
 
 ### Breaking

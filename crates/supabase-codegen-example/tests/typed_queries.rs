@@ -300,6 +300,7 @@ async fn failed_payload_serialization_survives_projection_changes_without_sendin
     #[derive(serde::Deserialize)]
     struct FailingRow;
     impl Relation for FailingRow {
+        type ColumnLookup = rp_supabase_client::schema::selection::RelationToken<Self>;
         const SCHEMA: &'static str = "public";
         const NAME: &'static str = "failing";
     }

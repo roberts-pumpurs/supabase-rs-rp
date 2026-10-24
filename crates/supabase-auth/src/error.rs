@@ -4,6 +4,12 @@ use crate::types::ErrorSchema;
 
 #[derive(thiserror::Error, Debug)]
 pub enum AuthError {
+    #[error("Invalid session: {0}")]
+    InvalidSession(&'static str),
+    #[error("Session store: {0}")]
+    SessionStore(#[from] crate::session_store::SessionStoreError),
+    #[error("Operating system randomness unavailable")]
+    Randomness,
     #[error("Reqwest error {0}")]
     Reqwest(#[from] reqwest::Error),
     #[error("Url parse error {0}")]

@@ -1,0 +1,7 @@
+error[E0609]: no field `missing` on type `Record<i64, (rp_supabase_codegen_example::database::public::tables::orders::Row, rp_supabase_client::schema::selection::Scalar<rp_supabase_codegen_example::database::public::tables::orders::columns::id>)>`
+ --> tests/ui/selection_unknown_field.rs:8:17
+  |
+8 |     let _ = row.missing;
+  |                 ^^^^^^^ unknown field
+  |
+  = note: available field is: `id`

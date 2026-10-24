@@ -36,7 +36,15 @@ fn clients() -> Result<(Postgrest, Postgrest), rp_postgrest::Error> {
 
 Bases must be HTTP(S) URLs without credentials, query strings, or fragments. Client header/auth validation is eager. Request-local header/auth, schema validation, and JSON serialization errors are deferred until `build` or execution. `build()` returns `Result<reqwest::RequestBuilder, Error>`, so caller request customization remains available.
 
-The default `rustls` feature enables HTTPS. With `default-features = false`, this crate enables no TLS backend itself. Enable a compatible Reqwest TLS feature in your dependency graph for HTTPS. A supplied client does not add a TLS backend absent from that graph.
+The default `rustls` feature enables HTTPS. For native TLS, disable default features and enable `native-tls`.
+rustls takes precedence when both are enabled. With neither backend enabled, HTTP still works.
+A supplied client does not add a TLS backend absent from the dependency graph.
+
+`with_retry_policy(RetryPolicy)` controls bounded retries for explicit HTTP 429 responses.
+The default permits two additional attempts for GET, HEAD and OPTIONS.
+The policy honors `Retry-After` without shortening server delays.
+Mutations require explicit replay opt-in; transport failures and other status codes are not replayed.
+Requests sent through the raw builder returned by `build()` bypass this policy.
 
 ## Literal resources and raw grammar
 

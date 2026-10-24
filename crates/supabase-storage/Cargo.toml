@@ -16,8 +16,15 @@ categories = ["api-bindings", "web-programming::http-client", "asynchronous"]
 [lib]
 name = "rp_supabase_storage"
 
+[features]
+default = ["rustls"]
+rustls = ["rp-supabase-http/rustls"]
+native-tls = ["rp-supabase-http/native-tls"]
+
 [dependencies]
 bytes.workspace = true
+base64.workspace = true
+rp-supabase-http.workspace = true
 chrono.workspace = true
 futures-util.workspace = true
 reqwest.workspace = true

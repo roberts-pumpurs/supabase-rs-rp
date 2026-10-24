@@ -140,6 +140,9 @@ while let Some(msg) = stream.next().await {
 `connect_with_state_tracking` keeps the presence state for you.
 It yields the full state after each `presence_state` or `presence_diff` message.
 `payload` holds every key you track, including `name`. Only `phx_ref` is reserved.
+`client.join` enables presence explicitly. For raw protocol joins, set
+`PresenceConfig { enabled: true, key }`; current servers do not enable it from the key alone.
+
 
 ```rust,no_run
 # use rp_supabase_realtime::rp_supabase_auth::jwt_stream::SupabaseAuthConfig;
@@ -177,14 +180,70 @@ while let Some(msg) = stream.next().await {
 The stream refreshes the access token when half of its lifetime has passed.
 The connection sends each new token to the server, and later messages carry it.
 If sign in fails, the stream retries `max_reconnect_attempts` times and waits `reconnect_interval` between attempts.
+Sign-in and refresh errors are delivered through the returned event stream. Queued joins
+wait for the first usable access token; the authentication stream's terminal sentinel
+ends the driver only after its retry policy has finished.
+Use `connect_with_session(session)` for an existing OAuth, anonymous, or MFA-upgraded session.
+It refreshes that session without another password login. `connect_with_auth_stream(stream)`
+accepts a `JwtRefreshStream` configured by the caller, including its session store.
 
-The connection sends a heartbeat every 20 seconds.
 
-## Limits
+## Reconnection, readiness, and shutdown
 
-- Only email or phone and password sign in is supported. You cannot pass an existing access token.
-- The client does not reconnect the websocket. When the server closes the connection, the stream ends.
-  Create a new connection to continue.
-- A connection holds one channel topic.
-- `subscribe_to_changes` and `join` do not wait for the server's `phx_reply`. `typed_changes` turns a
-  failed join into `SupabaseRealtimeError::ChannelError`. With the raw stream, read the replies yourself.
+`RealtimeConnection::with_options(ConnectionOptions)` and
+`RealtimeBaseConnection::with_options(ConnectionOptions)` configure bounded exponential
+backoff with 50 to 100% jitter, a consecutive retry budget, heartbeat interval,
+acknowledgement timeout, complete handshake `connect_timeout`, per-write `write_timeout`,
+and bounded command/event queues. Defaults are eight retries, 250 ms initial
+backoff, 30 s maximum, a 20 s heartbeat and 10 s acknowledgement, handshake and write timeouts.
+Jitter uses integer duration arithmetic. An acknowledgement timeout too large to represent
+as a monotonic deadline expires immediately instead of panicking or disabling liveness checks.
+Command sends wait for capacity; closing the driver reports a send error, not silent loss.
+Event delivery applies backpressure. Consume the event stream promptly: a full event queue
+also pauses protocol processing and token forwarding.
+
+The concrete `RealtimeStream` returned by `connect` exposes `statuses()`, a futures stream
+of `ConnectionStatus`, and `status()`, a Tokio watch receiver of the same state.
+Slow observers may coalesce intermediate transitions. `Ready` requires acknowledgement of every intended join and,
+for database subscriptions, a successful server system message. Rejected joins yield
+`ChannelError`, never false readiness. `shutdown().await` or dropping this stream cancels
+the socket, refresh stream and reconnect delay.
+
+The driver remembers the latest join per topic, including database filters, `private`,
+broadcast and presence configuration. Rejoins use fresh monotonic references and the
+latest access token. Old-generation acknowledgements are ignored. The latest tracked
+presence payload is retracked after the join acknowledgement; presence diffs are withheld
+until a fresh snapshot arrives. Historical broadcasts are never replayed. Transient commands
+received during an outage yield an explicit channel error. There is **no exactly-once
+delivery or outage history guarantee** for broadcasts or database changes.
+
+The high-level client owns one topic; the raw protocol interface supports multiple topics
+and existing tokens. `join`/`subscribe_to_changes` enqueue intent rather than await readiness.
+Authentication continues during backoff; refresh failures are surfaced in the event stream.
+Retryable authentication failures do not close a healthy socket or interrupt recovery.
+`RealtimeRestarting` and `InitializingProjectConnection` join rejections consume the reconnect
+budget; invalid joins remain terminal. PostgreSQL system errors are surfaced while waiting
+for the server's subscription retry and successful readiness message.
+`with_auth_client(reqwest::Client)` preserves supplied HTTP/TLS settings for sign-in and refresh.
+
+Default TLS is `rustls`; `--no-default-features --features native-tls` selects native TLS.
+When both are enabled, rustls wins. `ws`/`http` use plain TCP and port 80 by default;
+`wss`/`https` use validated TLS and port 443, including IP hosts. No backend disables
+certificate validation. With neither feature, only plain connections are available.
+Plain connections do not load TLS certificates or construct a TLS connector.
+rustls honors an installed process crypto provider. Otherwise it selects AWS-LC explicitly,
+so adding a dependency with rustls-ring does not make WebSocket setup panic.
+
+### Local restart acceptance
+
+The ignored `live_reconnect` integration test requires `SUPABASE_URL`, `SUPABASE_ANON_KEY`
+and `SUPABASE_ACCESS_TOKEN` for an authenticated fixture user. The fixture must have the
+published `public.product_events` table and owner RLS policy. Run it explicitly with
+`--test live_reconnect -- --ignored --nocapture`. On `REALTIME_READY_RESTART`, restart the
+fixture's Realtime container externally. It checks broadcast, presence and an RLS-protected
+database insert before and after reconnection, without asserting delivery during the outage.
+Missing configuration fails the selected test rather than silently passing.
+
+Protocol references: [Supabase protocol](https://supabase.com/docs/guides/realtime/protocol),
+[Realtime channels](https://supabase.com/docs/reference/javascript/subscribe),
+and [Phoenix channel messages](https://hexdocs.pm/phoenix/writing_a_channels_client.html).

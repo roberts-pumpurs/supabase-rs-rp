@@ -21,11 +21,12 @@ pub trait Selection: Copy {
         serde_json::from_str(body)
     }
     /// Resolve a column on the selected root relation.
-    fn column<K>(self, _: Key<K>) -> <Self::Relation as ColumnByKey<K>>::Column
+    fn column<K, N, C>(self, _: Key<K, N>) -> C
     where
-        Self::Relation: ColumnByKey<K>,
+        N: KeyName<Key = K>,
+        Self::Relation: SelectedColumn<N, Column = C>,
     {
-        <Self::Relation as ColumnByKey<K>>::COLUMN
+        <Self::Relation as SelectedColumn<N>>::COLUMN
     }
 }
 /// Select an existing named projection without storing any decoded data.
@@ -77,11 +78,12 @@ impl<O, P, E: Relationship, A: Alias, D> Handle<O, P, E, A, D> {
         clippy::unused_self,
         reason = "The fluent handle supplies the final target type for column inference."
     )]
-    pub fn column<K>(self, _: Key<K>) -> <E::Target as ColumnByKey<K>>::Column
+    pub fn column<K, N, C>(self, _: Key<K, N>) -> C
     where
-        E::Target: ColumnByKey<K>,
+        N: KeyName<Key = K>,
+        E::Target: SelectedColumn<N, Column = C>,
     {
-        <E::Target as ColumnByKey<K>>::COLUMN
+        <E::Target as SelectedColumn<N>>::COLUMN
     }
 }
 impl<O, P, E: Relationship, A: Alias, D> EmbedPath for Handle<O, P, E, A, D> {
@@ -106,6 +108,18 @@ impl<R> Clone for RelationToken<R> {
     }
 }
 impl<R> RelationToken<R> {
+    /// Obtain table-specific metadata, retaining generic-root lookup.
+    #[must_use]
+    #[expect(
+        clippy::unused_self,
+        reason = "The relation token selects concrete or generic lookup dispatch"
+    )]
+    pub fn columns(self) -> R::ColumnLookup
+    where
+        R: Relation,
+    {
+        R::ColumnLookup::default()
+    }
     /// Construct a zero-sized metadata token.
     #[must_use]
     pub const fn new() -> Self {
@@ -155,10 +169,13 @@ impl<E: Relationship> EdgeToken<E> {
 pub trait SelectedColumn<Name>: Relation {
     /// Generated column marker.
     type Column: Column<Relation = Self>;
+    /// Resolved zero-sized column value.
+    const COLUMN: Self::Column;
 }
 #[diagnostic::do_not_recommend]
 impl<R: ColumnByKey<N::Key>, N: KeyName> SelectedColumn<N> for R {
     type Column = R::Column;
+    const COLUMN: Self::Column = R::COLUMN;
 }
 /// Relationship lookup for `select!`. Implemented for every relation that resolves the key.
 #[doc(hidden)]
@@ -176,22 +193,43 @@ impl<R: RelationshipByKey<N::Key>, N: KeyName> SelectedRelationship<N> for R {
     type Edge = R::Edge;
 }
 /// Resolve or construct checked selection metadata.
-// The output is a separate parameter: a `R::Column` projection in the return type
-// would report a second, encoded copy of an unknown-column error.
-#[doc(hidden)]
-#[must_use]
-pub fn column<R: SelectedColumn<N, Column = C>, N, C>(_: RelationToken<R>, _: N) -> Scalar<C> {
-    Scalar(PhantomData)
-}
-/// Resolve or construct checked selection metadata.
 #[doc(hidden)]
 #[must_use]
 pub fn edge<R: SelectedRelationship<N, Edge = E>, N, E>(_: RelationToken<R>, _: N) -> EdgeToken<E> {
     EdgeToken(PhantomData)
 }
+/// Generic-root fallback for concrete column lookup metadata.
+#[doc(hidden)]
+pub trait ColumnLookup: Copy + Default {
+    /// Relation whose columns are resolved.
+    type Relation: Relation;
+    /// Resolve a column on a generic root.
+    fn column<N, C>(self, _: N) -> Scalar<C>
+    where
+        Self::Relation: SelectedColumn<N, Column = C>,
+    {
+        Scalar::new()
+    }
+}
+impl<R: Relation> ColumnLookup for RelationToken<R> {
+    type Relation = R;
+}
 /// Resolved selection metadata used by generated constructors.
 #[doc(hidden)]
 pub struct Scalar<C>(PhantomData<fn() -> C>);
+impl<C> Scalar<C> {
+    /// Construct resolved scalar metadata.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn new() -> Self {
+        Self(PhantomData)
+    }
+}
+impl<C> Default for Scalar<C> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl<C> Copy for Scalar<C> {}
 impl<C> Clone for Scalar<C> {
     fn clone(&self) -> Self {

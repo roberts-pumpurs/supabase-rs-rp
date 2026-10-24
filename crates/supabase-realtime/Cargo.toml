@@ -13,30 +13,34 @@ documentation = "https://docs.rs/rp-supabase-realtime"
 keywords = ["supabase", "realtime", "websocket", "postgres", "async"]
 categories = ["api-bindings", "asynchronous", "web-programming::websocket", "database"]
 
+[features]
+default = ["rustls"]
+rustls = ["dep:rustls", "rustls/aws_lc_rs", "dep:rustls-native-certs", "tokio-tungstenite/rustls-tls-native-roots", "rp-supabase-auth/rustls"]
+native-tls = ["tokio-tungstenite/native-tls", "rp-supabase-auth/native-tls"]
+
 [dependencies]
-tokio.workspace = true
-http-body-util.workspace = true
-hyper.workspace = true
+tokio = { workspace = true, features = ["rt", "macros", "sync", "time", "net", "io-util"] }
 url.workspace = true
-rustls.workspace = true
-bytes.workspace = true
-hyper-util.workspace = true
-tokio-rustls.workspace = true
-rustls-native-certs.workspace = true
+rustls = { workspace = true, optional = true }
+rustls-native-certs = { workspace = true, optional = true }
 thiserror.workspace = true
 tracing.workspace = true
-fastwebsockets = { workspace = true, features = ["unstable-split"] }
-rp-supabase-auth.workspace = true
+rp-supabase-auth = { workspace = true, default-features = false }
+tokio-tungstenite.workspace = true
+async-stream.workspace = true
+reqwest.workspace = true
 futures.workspace = true
 simd-json.workspace = true
 serde.workspace = true
-tokio-stream.workspace = true
 
 [dev-dependencies]
 test-log.workspace = true
 rstest.workspace = true
 tracing-subscriber.workspace = true
 pretty_assertions.workspace = true
+rcgen = "0.14"
+tokio-rustls.workspace = true
+rustls = { workspace = true, features = ["ring"] }
 
 [lints]
 workspace = true

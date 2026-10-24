@@ -13,7 +13,7 @@ Use [rp-supabase-codegen](../supabase-codegen/README.md) in a build script to ge
 
 ## Query-first selections
 
-Regenerate bindings with codegen 0.12. Describe the fields at the query instead of declaring a DTO for every local result:
+Regenerate bindings with the matching codegen release. Describe the fields at the query instead of declaring a DTO for every local result:
 
 ```rust,no_run
 # use rp_supabase_codegen_example::database;
@@ -48,17 +48,22 @@ The FK determines each child relation. The result has ordinary named Rust fields
 
 Function-local imports, concrete aliases, and bounded generic root/DTO types work. `key!(type id)` supplies the lookup-name type for a generic `ColumnByKey` bound. Keys encode the complete Rust identifier without hashing. Lookup uses the exact generated row type, including its schema, and rendering retains the exact SQL name.
 
-An unknown column or relationship name is one compile error at that name. rustc prints the row type by its shortest unambiguous path:
+An unknown column is one compile error at the written name. A concrete generated root,
+including a type alias or nested relation, names the SQL table and lists its valid columns:
 
 ```text
-error[E0277]: no column `title` on `Row`
-  --> examples/error_unknown_column.rs:16:53
-   |
-16 |     let notes = select!(notes::Row => { owner_name, title })
-   |                                                     ^^^^^ unknown column
-   |
-   = note: valid names are the items of the `columns` module next to `Row`
+error[E0277]: no column `title` on table `public.messages`
+ --> tests/ui/select_unknown_column.rs:6:35
+  |
+6 |     let _ = select!(Root => { id, title });
+  |                                   ^^^^^ unknown column
+  |
+  = note: valid columns: amount, body, created_at, excerpt, id, message_meta, metadata, mood, note, tags
 ```
+
+Generic roots retain a readable unknown-column error and point to the generated `columns` module.
+`column(key!(typo))` also names the key without printing character tuples.
+Missing result fields list only selected fields, not the private selection marker.
 
 A relationship typo reports ``no relationship `name` on `Row` `` the same way. If another item in the crate graph has the same name as the typo, rustc prefixes the name with the enclosing function, for example `main::title`.
 
@@ -373,6 +378,15 @@ Single-relation `projection!` continues to support `alias: embed(RelationshipMar
 To-one embeds decode as `Option<Child>` and to-many embeds as `Vec<Child>`. These types remain conservative with `inner`, because RLS and filters can hide rows. Ordinary child filters preserve parent rows; `inner` filters at the embed's parent level. For UPDATE and DELETE, constrain affected rows with root filters. Child filters shape returned representations. PostgREST 16.2 rejects embed-alias existence predicates on DELETE; the client reports the canonical server error and does not rewrite them into FK null checks. See [generated relationship contracts](../supabase-codegen/README.md#typed-relationships) for edge and naming rules.
 
 Typed fetch, RPC, raw fetch, and count methods return the same flat `rp_postgrest::Error`. `error.postgrest_body()` exposes decoded code/message/details/hint; `postgrest_error()` exposes the canonical structured source. `status()`, `url()`, and `response_metadata()` retain observed HTTP metadata, including on successful-response decoding failures. HTTP 300 is an error for checked execution. Ambiguous embedding PGRST201 details can be a typed array of relationship descriptions, not only text. Malformed error-envelope bytes remain in the Decode source. See the [raw error guide](../postgrest/README.md#one-error-result).
+
+## Migration from 0.14
+
+- Regenerate bindings with the matching runtime, macro, and codegen versions.
+- Value-form `key!(id)` includes a readable name marker. For local type annotations, use `Key<key!(type id), _>`.
+- `key!(type id)` and generic `ColumnByKey<key!(type id)>` bounds stay unchanged.
+- Handwritten `Relation` implementations must provide `type ColumnLookup = schema::selection::RelationToken<Self>;`.
+- Generated relations provide their table-specific lookup. Local records still have movable named fields and preserve SQL serialization keys.
+- Default features include `client` and `rustls`. For native TLS, disable default features and enable `client,native-tls`.
 
 ## Migration from 0.13
 

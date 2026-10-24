@@ -116,7 +116,7 @@ async fn authenticated_login_refresh_and_rest_share_configured_transport() {
         .match_body(Matcher::PartialJson(
             serde_json::json!({"refresh_token":"refresh"}),
         ))
-        .with_body(r#"{"access_token":"second"}"#)
+        .with_body(r#"{"access_token":"second","refresh_token":"rotated","expires_in":3600}"#)
         .create_async()
         .await;
     let first_rest = server
@@ -167,7 +167,7 @@ async fn authenticated_default_constructor_supplies_protocol_headers() {
         .match_query(Matcher::UrlEncoded("grant_type".into(), "password".into()))
         .match_header("apikey", "key")
         .match_header("content-type", "application/json")
-        .with_body(r#"{"access_token":"token"}"#)
+        .with_body(r#"{"access_token":"token","refresh_token":"refresh","expires_in":3600}"#)
         .create_async()
         .await;
     let rest = server

@@ -37,3 +37,35 @@ jobs:
             echo "$bad"
             exit 1
           fi
+
+  msrv:
+    runs-on: ubuntu-22.04
+    name: Rust 1.88
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-repo
+        with:
+          toolchain: "1.88.0"
+      - run: cargo check --workspace --all-features --all-targets --locked
+
+  tls:
+    runs-on: ubuntu-22.04
+    name: TLS (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: rustls
+            facade: full,rustls
+            realtime: rustls
+          - name: native-tls
+            facade: full,native-tls
+            realtime: native-tls
+          - name: plain
+            facade: full
+            realtime: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-repo
+      - run: cargo check -p supabase-rp --no-default-features --features "${{ matrix.facade }}" --locked
+      - run: cargo test -p rp-supabase-realtime --no-default-features --features "${{ matrix.realtime }}" --test reconnect --locked

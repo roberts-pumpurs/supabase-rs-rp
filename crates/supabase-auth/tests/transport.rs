@@ -155,7 +155,7 @@ async fn authenticated_auth_stream_reuses_transport_after_refresh() {
         .match_header("x-transport", "retained")
         .match_header("authorization", "Bearer original")
         .match_body(Matcher::Regex(r#""refresh_token":"refresh""#.into()))
-        .with_body(r#"{"access_token":"second"}"#)
+        .with_body(r#"{"access_token":"second","refresh_token":"rotated","expires_in":3600}"#)
         .create_async()
         .await;
     let user_request = server
@@ -248,7 +248,7 @@ async fn default_client_does_not_follow_cross_origin_redirect() {
 
     let result = client.reset_password_for_email("user@example.com").await;
 
-    assert!(result.is_err());
+    result.unwrap_err();
     redirect.assert_async().await;
     leaked.assert_async().await;
 }

@@ -165,8 +165,15 @@ The other variants cover transport failures, invalid URLs, invalid header values
 
 ## Limits
 
-- The client does not store sessions. Keep the tokens yourself, or use the refresh stream.
-- OAuth redirects need your own redirect handling. Start the flow with `AuthorizeRequest` and a code challenge, then call `exchange_code_for_session` with the returned `code` and your verifier.
+- `ApiClient::sign_in_with_oauth(AuthorizeRequest)` generates an OS-random verifier and S256 challenge, returning `OAuthPkce { authorization_url, verifier }`. Open the URL yourself, handle the callback, then call `complete_oauth(code, verifier)`. The verifier is deliberately explicit and redacted in Debug.
+- `sign_in_anonymously(data, captcha)` uses signup and requires a complete session with `user.is_anonymous == true`.
+- Attach `Arc<dyn SessionStore>` using `JwtStream::with_session_store`. `MemorySessionStore` is process-local; optional `file-session-store` enables `FileSessionStore::new(path)`. `with_session` accepts OAuth/anonymous/MFA sessions. `resume().await` loads the stored session and immediately rotates its refresh token without password fallback. Each initial/rotated session is saved before being yielded. Store errors are yielded once and terminate the stream.
+- File stores atomically replace the destination entry (including symlinks), create Unix files with mode 0600, and treat missing files as no session and malformed/incomplete files as `SessionStoreError::Corrupt`. Use a private, trusted parent directory: parent-directory symlink attacks, encryption/keychain integration, and multi-process refresh coordination are outside this adapter. Concurrent writers are last-writer-wins; do not refresh the same session concurrently. Failed or cancelled saves make a best-effort synchronous unlink of their temporary file; credential writes remain asynchronous. `clear().await` removes local credentials, not the server session; call logout separately when appropriate.
+- `with_retry_policy(RetryPolicy)` configures bounded 429 retries; mutation replay requires explicit opt-in. Supplied HTTP clients keep their transport configuration.
+
+Protocol references: [GoTrue authorization](https://github.com/supabase/auth/blob/master/internal/api/external.go), [auth-js OAuth/anonymous/PKCE](https://github.com/supabase/auth-js/blob/master/src/GoTrueClient.ts), [RFC 7636 S256 vector](https://www.rfc-editor.org/rfc/rfc7636#appendix-B).
+
+Refresh stream state is now private (except its client). Refresh deadlines start at successful token receipt, not the consumer's next poll; retry deadlines start when a failure is yielded, including password sign-in failures. Errors are observable even on the final failed attempt, and failed refreshes never fall back to password login. Dropping the stream cancels its tasks.
 
 ## Migration from 0.9
 

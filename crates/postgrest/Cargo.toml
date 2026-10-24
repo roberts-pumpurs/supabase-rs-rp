@@ -15,7 +15,8 @@ categories = ["database", "asynchronous", "web-programming::http-client"]
 
 [features]
 default = ["rustls"]
-rustls = ["reqwest/rustls"]
+rustls = ["rp-supabase-http/rustls"]
+native-tls = ["rp-supabase-http/native-tls"]
 test-util = []
 
 [dependencies]
@@ -25,6 +26,7 @@ serde.workspace = true
 serde_json.workspace = true
 url.workspace = true
 thiserror.workspace = true
+rp-supabase-http.workspace = true
 
 [dev-dependencies]
 mockito.workspace = true

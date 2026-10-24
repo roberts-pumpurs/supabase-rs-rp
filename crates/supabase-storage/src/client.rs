@@ -34,6 +34,7 @@ pub struct StorageClient {
     http: reqwest::Client,
     base: Url,
     headers: HeaderMap,
+    retry_policy: rp_supabase_http::RetryPolicy,
 }
 
 #[derive(Serialize)]
@@ -57,7 +58,7 @@ impl StorageClient {
     /// Returns an error when the URL cannot be a base, `api_key` is not a valid header value, or
     /// the HTTP client cannot be built.
     pub fn new(project_url: &Url, api_key: &str) -> Result<Self, StorageError> {
-        let http = reqwest::Client::builder()
+        let http = rp_supabase_http::client_builder()
             .redirect(same_origin_redirects())
             .build()?;
         Self::new_with_client(project_url, api_key, http)
@@ -83,6 +84,7 @@ impl StorageClient {
             http,
             base,
             headers,
+            retry_policy: rp_supabase_http::RetryPolicy::default(),
         })
     }
 
@@ -110,6 +112,7 @@ impl StorageClient {
             http: self.http.clone(),
             base: storage_base(project_url)?,
             headers: self.headers.clone(),
+            retry_policy: self.retry_policy,
         })
     }
 
@@ -119,13 +122,21 @@ impl StorageClient {
         Bucket::new(self, bucket)
     }
 
+    /// Sets the policy for explicit rate-limit responses.
+    #[must_use]
+    pub const fn with_retry_policy(mut self, policy: rp_supabase_http::RetryPolicy) -> Self {
+        self.retry_policy = policy;
+        self
+    }
+
     /// Lists all buckets visible to the current credentials.
     ///
     /// # Errors
     ///
     /// Returns an error on transport failure, non-success status, or an unexpected body.
     pub async fn list_buckets(&self) -> Result<Vec<BucketInfo>, StorageError> {
-        Self::json(self.request(Method::GET, self.url(["bucket"]))).await
+        self.json(self.request(Method::GET, self.url(["bucket"])))
+            .await
     }
 
     /// Fetches one bucket.
@@ -135,7 +146,7 @@ impl StorageClient {
     /// Returns an error on an invalid id, transport failure, non-success status, or an unexpected body.
     pub async fn get_bucket(&self, id: &str) -> Result<BucketInfo, StorageError> {
         let url = self.url(["bucket", path::bucket(id)?]);
-        Self::json(self.request(Method::GET, url)).await
+        self.json(self.request(Method::GET, url)).await
     }
 
     /// Creates a bucket whose id and name are `id`.
@@ -153,7 +164,8 @@ impl StorageClient {
             name: id,
             options,
         };
-        Self::send(self.request(Method::POST, self.url(["bucket"])).json(&body)).await?;
+        self.send(self.request(Method::POST, self.url(["bucket"])).json(&body))
+            .await?;
         Ok(())
     }
 
@@ -173,7 +185,8 @@ impl StorageClient {
             name: id,
             options,
         };
-        Self::send(self.request(Method::PUT, url).json(&body)).await?;
+        self.send(self.request(Method::PUT, url).json(&body))
+            .await?;
         Ok(())
     }
 
@@ -184,7 +197,7 @@ impl StorageClient {
     /// Returns an error on an invalid id, transport failure, or non-success status.
     pub async fn empty_bucket(&self, id: &str) -> Result<(), StorageError> {
         let url = self.url(["bucket", path::bucket(id)?, "empty"]);
-        Self::send(
+        self.send(
             self.request(Method::POST, url)
                 .json(&serde_json::Map::new()),
         )
@@ -200,7 +213,7 @@ impl StorageClient {
     /// Returns an error on an invalid id, transport failure, or non-success status.
     pub async fn delete_bucket(&self, id: &str) -> Result<(), StorageError> {
         let url = self.url(["bucket", path::bucket(id)?]);
-        Self::send(self.request(Method::DELETE, url)).await?;
+        self.send(self.request(Method::DELETE, url)).await?;
         Ok(())
     }
 
@@ -218,8 +231,9 @@ impl StorageClient {
         self.http.request(method, url).headers(self.headers.clone())
     }
 
-    pub(crate) async fn send(request: RequestBuilder) -> Result<Response, StorageError> {
-        let response = request.send().await?;
+    pub(crate) async fn send(&self, request: RequestBuilder) -> Result<Response, StorageError> {
+        let (http, request) = request.build_split();
+        let response = rp_supabase_http::execute(&http, request?, self.retry_policy).await?;
         let status = response.status();
         if status.is_success() {
             return Ok(response);
@@ -229,9 +243,10 @@ impl StorageClient {
     }
 
     pub(crate) async fn json<T: DeserializeOwned>(
+        &self,
         request: RequestBuilder,
     ) -> Result<T, StorageError> {
-        let bytes = Self::send(request).await?.bytes().await?;
+        let bytes = self.send(request).await?.bytes().await?;
         Ok(serde_json::from_slice(&bytes)?)
     }
 }

@@ -31,12 +31,83 @@ typed-builder = "0.23"
     )
     .unwrap();
     let header = format!(
-        "#![allow(dead_code)]\nextern crate renamed as rp_supabase_client;\nmod bindings {{ include!({:?}); }}\nmod database {{ include!({:?}); }}\nuse bindings::public::tables;\nuse database::public;\nuse database::public::tables as rel;\nuse rp_supabase_client::rp_postgrest::Postgrest;\nuse rp_supabase_client::schema::Selection;\n#[path = {:?}] mod relationship_projections;\nuse relationship_projections::*;\nrp_supabase_client::projection! {{ struct Id for bindings::public::tables::a_b {{ id }} }}\nrp_supabase_client::projection! {{ struct OtherOrder for database::public::tables::orders {{ id, billing: embed(database::public::tables::orders::relationships::orders_billing, AddressSummary) }} }}\n",
+        "#![allow(dead_code)]\nextern crate renamed as rp_supabase_client;\nmod bindings {{ include!({:?}); }}\nmod database {{ include!({:?}); }}\n#[allow(unused_imports, reason = \"Shared harness supports independent consumer snippets\")]\nuse bindings::public::tables;\nuse database::public;\nuse database::public::tables as rel;\nuse rp_supabase_client::rp_postgrest::Postgrest;\nuse rp_supabase_client::schema::Selection;\n#[path = {:?}] mod relationship_projections;\n#[allow(clippy::wildcard_imports, reason = \"Shared harness exposes the DTOs used by independent snippets\")]\nuse relationship_projections::*;\nrp_supabase_client::projection! {{ struct Id for bindings::public::tables::a_b {{ id }} }}\nrp_supabase_client::projection! {{ struct OtherOrder for database::public::tables::orders {{ id, billing: embed(database::public::tables::orders::relationships::orders_billing, AddressSummary) }} }}\n",
         PathBuf::from(env!("OUT_DIR")).join("contract_bindings.rs"),
         PathBuf::from(env!("OUT_DIR")).join("database.rs"),
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/relationship_projections.rs"),
     );
+    let renamed_runtimes = format!(
+        r#"extern crate renamed as Name;
+extern crate renamed as Selected;
+extern crate renamed as __supabase_column_runtime;
+mod runtime_name {{ include!({:?}); }}
+mod runtime_selected {{ include!({:?}); }}
+mod runtime_prefixed {{ include!({:?}); }}
+fn consumer(client: Postgrest) {{
+    let _ = rp_supabase_client::select!(runtime_name::public::tables::messages::Row => {{ id }}).query(client.clone());
+    let _ = rp_supabase_client::select!(runtime_selected::public::tables::messages::Row => {{ id }}).query(client.clone());
+    let _ = rp_supabase_client::select!(runtime_prefixed::public::tables::messages::Row => {{ id }}).query(client);
+}}"#,
+        PathBuf::from(env!("OUT_DIR")).join("runtime_name.rs"),
+        PathBuf::from(env!("OUT_DIR")).join("runtime_selected.rs"),
+        PathBuf::from(env!("OUT_DIR")).join("runtime_prefixed.rs"),
+    );
     let cases = [
+        (
+            "codegen_runtime_generic_name_collision",
+            renamed_runtimes.as_str(),
+            true,
+        ),
+        (
+            "key_runtime_name_equals_key",
+            "fn consumer() { use renamed as id; let _=id::key!(runtime=id; id); }",
+            true,
+        ),
+        (
+            "runtime_name_equals_column",
+            "fn consumer() { use renamed as id; let selected=id::select!(runtime=id; rel::orders::Row => { id }); let _=selected.decode(\"[]\"); }",
+            true,
+        ),
+        (
+            "runtime_name_equals_relationship",
+            "fn consumer() { use renamed as orders_billing; let selected=orders_billing::select!(runtime=orders_billing; rel::orders::Row => { billing: orders_billing { id } }); let _=selected.decode(\"[]\"); }",
+            true,
+        ),
+        (
+            "readable_path_key_typo",
+            "fn consumer() { let s=rp_supabase_client::select!(rel::orders::Row => { id, billing: embed(orders_billing,AddressSummary) }); let _=s.billing.then(AddressSummary::country).column(rp_supabase_client::key!(nmae)); }",
+            false,
+        ),
+        (
+            "readable_handle_key_typo",
+            "fn consumer() { let s=rp_supabase_client::select!(rel::orders::Row => { id, billing: orders_billing { id } }); let _=s.billing.column(rp_supabase_client::key!(lable)); }",
+            false,
+        ),
+        (
+            "concrete_notes_valid_names",
+            "fn consumer() { type Root=bindings::public::tables::notes::Row; let _=rp_supabase_client::select!(Root => { id, title }); }",
+            false,
+        ),
+        (
+            "movable_raw_unicode_fields",
+            "fn consumer() { let s=rp_supabase_client::select!(bindings::shared::tables::typed_probe::Row => { id, r#type, café }); let mut rows=s.decode(\"[]\").unwrap(); let row=rows.remove(0); let _id=row.id; let _kind=row.r#type; let _name=row.café; }",
+            true,
+        ),
+        (
+            "generic_empty_only",
+            "fn consumer<R>() where R: rp_supabase_client::schema::Relation + rp_supabase_client::schema::Projection<R> + rp_supabase_client::schema::RelationshipByKey<rp_supabase_client::key!(type orders_billing)> { let s=rp_supabase_client::select!(R => { matched: empty(orders_billing) }); let _=s.decode(\"[]\"); }",
+            true,
+        ),
+        (
+            "readable_key_typo",
+            "fn consumer() { let s=rp_supabase_client::select!(rel::orders::Row => { id }); let _=s.column(rp_supabase_client::key!(titl)); }",
+            false,
+        ),
+        (
+            "private_record_marker",
+            "fn consumer() { let s=rp_supabase_client::select!(rel::orders::Row => { id }); let rows=s.decode(\"[]\").unwrap(); let _=&rows[0].missing; }",
+            false,
+        ),
         (
             "named_projection_runtime_and_item_hygiene",
             "#[allow(non_camel_case_types)] fn consumer(c: Postgrest) { use renamed as __selection_Runtime; struct str; struct usize; type __selection_Alias0=AddressSummary; __selection_Runtime::projection! { #[derive(Debug)] pub struct __selection_KeyVisitor for rel::orders { id, r#select: embed(rel::orders::relationships::orders_billing, __selection_Alias0, inner), matched: empty(rel::orders::relationships::order_details_details_order) } } let _: __selection_KeyVisitor=serde_json::from_str(\"{\\\"id\\\":7,\\\"select\\\":null}\").unwrap(); let _=rel::orders::query(c).select(__selection_Runtime::schema::named::<_, __selection_KeyVisitor>()).embedded(__selection_KeyVisitor::r#select.then(AddressSummary::country), |_| {}).exists(__selection_KeyVisitor::matched); }",
@@ -480,9 +551,23 @@ typed-builder = "0.23"
         )
         .unwrap();
         let mut command = Command::new(env!("CARGO"));
-        command
-            .current_dir(&directory)
-            .args(["check", "--offline", "--quiet"]);
+        command.current_dir(&directory);
+        if name == "local_selection_positive" {
+            command.args([
+                "clippy",
+                "--offline",
+                "--quiet",
+                "--",
+                "-D",
+                "warnings",
+                "-W",
+                "clippy::pedantic",
+                "-W",
+                "clippy::nursery",
+            ]);
+        } else {
+            command.args(["check", "--offline", "--quiet"]);
+        }
         if let Some(toolchain) = option_env!("RUSTUP_TOOLCHAIN") {
             command.env("RUSTUP_TOOLCHAIN", toolchain);
         }
@@ -493,6 +578,29 @@ typed-builder = "0.23"
             "{name}: {}",
             String::from_utf8_lossy(&output.stderr)
         );
+        let diagnostics = String::from_utf8_lossy(&output.stderr);
+        if matches!(
+            name,
+            "readable_key_typo" | "readable_path_key_typo" | "readable_handle_key_typo"
+        ) {
+            let typo = match name {
+                "readable_path_key_typo" => "nmae",
+                "readable_handle_key_typo" => "lable",
+                _ => "titl",
+            };
+            assert!(diagnostics.contains(typo), "{diagnostics}");
+            assert!(!diagnostics.contains("Character<"), "{diagnostics}");
+            assert_eq!(diagnostics.matches("error[E").count(), 1, "{diagnostics}");
+        }
+        if name == "private_record_marker" {
+            assert!(!diagnostics.contains("__selection_marker"), "{diagnostics}");
+        }
+        if name == "concrete_notes_valid_names" {
+            for expected in ["title", "public.notes", "id", "owner", "owner_name", "body"] {
+                assert!(diagnostics.contains(expected), "{diagnostics}");
+            }
+            assert!(!diagnostics.contains("Character<"), "{diagnostics}");
+        }
     }
     fs::remove_dir_all(directory).unwrap();
 }

@@ -1,0 +1,31 @@
+[package]
+name = "rp-supabase-http"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+description = "Bounded rate-limit retry policy for Supabase HTTP clients"
+readme = "README.md"
+keywords = ["supabase", "http", "retry", "reqwest"]
+categories = ["web-programming::http-client", "asynchronous"]
+
+[features]
+default = ["rustls"]
+rustls = ["reqwest/rustls"]
+native-tls = ["reqwest/native-tls"]
+
+[dependencies]
+reqwest.workspace = true
+tokio = { workspace = true, features = ["time"] }
+httpdate = "1"
+
+[dev-dependencies]
+mockito.workspace = true
+futures-util.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Ergonomic native/server OAuth PKCE handoff, validated anonymous sign-in, asynchronous memory and optional secure file session adapters, persisted initial/rotated sessions and refresh-only resumption.
+- Shared bounded 429 retry policy and TLS-aware default transport.
+
+### Changed
+
+- Session Debug output redacts tokens. Refresh stream implementation state is private; terminal failures remain observable, persistence failures terminate, and refresh never falls back to password login.
+- Anchor refresh and retry deadlines independently of consumer polling, validate MFA verification sessions, and best-effort clean up temporary credential files on save cancellation.
+
 ## [0.11.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-auth-v0.10.1...rp-supabase-auth-v0.11.0) - 2026-10-24
 
 ### Breaking

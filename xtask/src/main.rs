@@ -21,6 +21,8 @@ enum Commands {
     Check,
     Fmt,
     Doc,
+    /// Run real-service acceptance against the already-started local fixture stack.
+    Live,
     UnusedDeps,
 }
 
@@ -76,7 +78,11 @@ fn main() -> eyre::Result<()> {
         }
         Commands::Check => {
             println!("cargo check");
-            cmd!(sh, "cargo clippy --workspace --locked -- -D warnings").run()?;
+            cmd!(
+                sh,
+                "cargo clippy --workspace --all-features --all-targets --locked -- -D warnings"
+            )
+            .run()?;
             cmd!(sh, "cargo fmt --all --check").run()?;
         }
         Commands::Fmt => {
@@ -92,6 +98,13 @@ fn main() -> eyre::Result<()> {
                 "cargo clippy --fix --allow-dirty --allow-staged --workspace --all-features --tests"
             )
             .run()?;
+        }
+        Commands::Live => {
+            let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .ok_or_else(|| eyre::eyre!("xtask must live inside the repository"))?;
+            sh.change_dir(root);
+            cmd!(sh, "python3 scripts/live_acceptance.py").run()?;
         }
         Commands::Doc => {
             println!("cargo doc");

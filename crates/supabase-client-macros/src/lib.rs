@@ -322,15 +322,33 @@ fn record(emission: &Emission<'_>) -> Tokens {
     let rt = emission.runtime;
     let fs: Vec<_> = emission.types().collect();
     let bound = emission.bound();
-    let marker = &emission.marker;
     let dfs: Vec<_> = emission.decoded().map(|field| &field.ty).collect();
     let dnames: Vec<_> = emission.decoded().map(|field| &field.field.alias).collect();
+    let module = emission.names.ident("record");
+    let value_types: Vec<_> = emission
+        .decoded()
+        .map(|field| emission.names.ident(&format!("V{}", field.index)))
+        .collect();
+    let marker_type = emission.names.ident("Marker");
+    let marker = &emission.marker;
     let count = dfs.len();
     quote! {
-        struct #record_ident<#r_ident,#(#fs),*> where #bound {
-            #(pub #dnames: <#dfs as #rt::schema::selection::SelectionField<#r_ident>>::Value,)*
-            #marker: ::core::marker::PhantomData<fn() -> (#r_ident,#(#fs),*)>,
+        mod #module {
+            pub struct Record<#(#value_types,)* #marker_type> {
+                #(pub #dnames: #value_types,)*
+                #marker: ::core::marker::PhantomData<fn() -> #marker_type>,
+            }
+            impl<#(#value_types,)* #marker_type> Record<#(#value_types,)* #marker_type> {
+                pub fn new(#(#dnames: #value_types),*) -> Self {
+                    Self { #(#dnames,)* #marker: ::core::marker::PhantomData }
+                }
+            }
         }
+        #[allow(type_alias_bounds)]
+        type #record_ident<#r_ident,#(#fs),*> where #bound = #module::Record<
+            #(<#dfs as #rt::schema::selection::SelectionField<#r_ident>>::Value,)*
+            (#r_ident,#(#fs),*)
+        >;
         impl<#r_ident,#(#fs),*> ::core::fmt::Debug for #record_ident<#r_ident,#(#fs),*> where #bound, #(<#dfs as #rt::schema::selection::SelectionField<#r_ident>>::Value: ::core::fmt::Debug,)* {
             fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                 let mut d = f.debug_struct("Record"); #(d.field(::core::stringify!(#dnames), &self.#dnames);)* d.finish()
@@ -459,24 +477,35 @@ fn key_type(rt: &Path, name: &Ident) -> Tokens {
 // Only prefixed identifiers are in scope inside the struct block, so it shadows nothing.
 fn lookup(names: &Names, rt: &Path, function: &str, name: &Ident) -> Tokens {
     let span = proc_macro2::Span::mixed_site().located_at(name.span());
-    let function = Ident::new(function, span);
-    let call = names.ident_at("lookup", span);
-    let key_name = names.ident_at("KeyName", span);
-    let key = names.ident_at("Key", span);
     let relation = names.ident_at("relation", span);
     let key_type = key_type(rt, name);
+    let name_trait = names.ident_at("KeyName", span);
+    let encoded = names.ident_at("EncodedKey", span);
+    let edge_lookup = names.ident_at("lookup_edge", span);
     let mut local = name.clone();
     local.set_span(span);
-    quote_spanned!(span=> {
-        use #rt::schema::{selection::#function as #call, KeyName as #key_name};
-        type #key = #key_type;
-        #call(#relation, {
+    let value = quote_spanned!(span=> {
+        use #rt::schema::KeyName as #name_trait;
+        type #encoded = #key_type;
+        {
             #[allow(non_camel_case_types)]
             struct #local;
-            impl #key_name for #local { type Key = #key; }
+            impl #name_trait for #local { type Key = #encoded; }
             #local
+        }
+    });
+    if function == "column" {
+        quote_spanned!(span=> {
+            #[allow(unused_imports)]
+            use #rt::schema::selection::ColumnLookup as _;
+            #relation.columns().column(#value)
         })
-    })
+    } else {
+        quote_spanned!(span=> {
+            use #rt::schema::selection::edge as #edge_lookup;
+            #edge_lookup(#relation, #value)
+        })
+    }
 }
 struct KeyInput {
     runtime: Path,
@@ -508,11 +537,26 @@ impl Parse for KeyInput {
 /// Construct a lossless schema key, or its name type with `key!(type identifier)`.
 #[proc_macro]
 pub fn key(input: TokenStream) -> TokenStream {
+    let names = Names::new(input.clone().into());
     let KeyInput { runtime, name, ty } = parse_macro_input!(input as KeyInput);
     let key = key_type(&runtime, &name);
     if ty {
         key.into()
     } else {
-        quote!(#runtime::schema::Key::<#key>::new()).into()
+        let span = proc_macro2::Span::mixed_site().located_at(name.span());
+        let name_trait = names.ident_at("KeyName", span);
+        let encoded = names.ident_at("EncodedKey", span);
+        let constructor = names.ident_at("Key", span);
+        quote_spanned!(span=> {
+            use #runtime::schema::{KeyName as #name_trait, Key as #constructor};
+            type #encoded = #key;
+            {
+                #[allow(non_camel_case_types)]
+                struct #name;
+                impl #name_trait for #name { type Key = #encoded; }
+                #constructor::<#encoded, #name>::new()
+            }
+        })
+        .into()
     }
 }

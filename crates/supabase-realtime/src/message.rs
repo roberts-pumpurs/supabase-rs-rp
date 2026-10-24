@@ -334,6 +334,8 @@ pub mod phx_join {
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     pub struct JoinConfig {
+        #[serde(default)]
+        pub private: bool,
         #[serde(rename = "broadcast")]
         pub broadcast: BroadcastConfig,
         #[serde(rename = "presence")]
@@ -352,6 +354,9 @@ pub mod phx_join {
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     pub struct PresenceConfig {
+        /// Current servers require explicit presence enablement on join.
+        #[serde(default)]
+        pub enabled: bool,
         pub key: String,
     }
 
@@ -440,11 +445,15 @@ pub mod phx_join {
                 topic: "realtime:db".to_owned(),
                 payload: ProtocolPayload::PhxJoin(PhxJoin {
                     config: JoinConfig {
+                        private: false,
                         broadcast: BroadcastConfig {
                             self_item: false,
                             ack: false,
                         },
-                        presence: PresenceConfig { key: String::new() },
+                        presence: PresenceConfig {
+                            enabled: false,
+                            key: String::new(),
+                        },
                         postgres_changes: vec![PostgresChanges {
                             event: PostgresChangeEvent::All,
                             schema: "public".to_owned(),

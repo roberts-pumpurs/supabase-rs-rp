@@ -16,6 +16,7 @@ pub use count::{Count, CountError, Counted};
 pub use error::{ConfigError, Error, ResponseMetadata};
 pub use reqwest;
 pub use rp_postgrest_error;
+pub use rp_supabase_http::RetryPolicy;
 
 use alloc::sync::Arc;
 use reqwest::{
@@ -30,6 +31,7 @@ struct Configuration {
     schema: Option<String>,
     headers: HeaderMap,
     client: Client,
+    retry_policy: RetryPolicy,
 }
 
 /// An immutable client configuration sharing one HTTP connection pool.
@@ -43,8 +45,7 @@ impl Postgrest {
     /// # Errors
     /// Returns configuration failures for an invalid base URL or HTTP client.
     pub fn new<U: AsRef<str>>(base_url: U) -> Result<Self, Error> {
-        let client = Client::builder()
-            .redirect(same_origin_redirects())
+        let client = rp_supabase_http::client_builder()
             .build()
             .map_err(ConfigError::Client)?;
         Self::new_with_client(base_url, client)
@@ -72,6 +73,7 @@ impl Postgrest {
                 schema: None,
                 headers: HeaderMap::new(),
                 client,
+                retry_policy: RetryPolicy::default(),
             }),
         })
     }
@@ -108,6 +110,12 @@ impl Postgrest {
         Arc::make_mut(&mut self.configuration).schema = Some(schema.as_ref().to_owned());
         self
     }
+    /// Set the policy for explicit HTTP 429 responses on future requests.
+    #[must_use]
+    pub fn with_retry_policy(mut self, policy: RetryPolicy) -> Self {
+        Arc::make_mut(&mut self.configuration).retry_policy = policy;
+        self
+    }
     /// Addresses a literal SQL resource name, encoding it exactly once.
     /// Dot-only names are rejected at build time because URL parsers normalize them.
     pub fn from<T: AsRef<str>>(&self, literal_table: T) -> Builder {
@@ -139,22 +147,4 @@ impl Postgrest {
         )
         .rpc_json(args)
     }
-}
-
-/// Follows a redirect only to the previous URL's origin, up to reqwest's default 10 hops.
-fn same_origin_redirects() -> reqwest::redirect::Policy {
-    const MAX_REDIRECTS: usize = 10;
-    reqwest::redirect::Policy::custom(|attempt| {
-        let same_origin = attempt
-            .previous()
-            .last()
-            .is_some_and(|previous| previous.origin() == attempt.url().origin());
-        if !same_origin {
-            attempt.stop()
-        } else if attempt.previous().len() > MAX_REDIRECTS {
-            attempt.error("too many redirects")
-        } else {
-            attempt.follow()
-        }
-    })
 }

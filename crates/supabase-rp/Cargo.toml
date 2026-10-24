@@ -7,7 +7,7 @@ license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
-description = "One entry point for Supabase from Rust: REST, auth, storage, functions, and realtime"
+description = "One entry point for Supabase from Rust: REST, auth, storage, functions, realtime, and GraphQL"
 documentation = "https://docs.rs/supabase-rp"
 readme = "README.md"
 keywords = ["supabase", "postgrest", "auth", "storage", "realtime"]
@@ -17,16 +17,19 @@ categories = ["api-bindings", "database", "authentication", "asynchronous", "web
 name = "supabase_rp"
 
 [features]
-default = ["rest", "auth"]
+default = ["rest", "auth", "rustls"]
+rustls = ["rp-supabase-http/rustls", "rp-postgrest?/rustls", "rp-supabase-auth?/rustls", "rp-supabase-storage?/rustls", "rp-supabase-functions?/rustls", "rp-supabase-client?/rustls", "rp-supabase-realtime?/rustls", "rp-supabase-graphql?/rustls"]
+native-tls = ["rp-supabase-http/native-tls", "rp-postgrest?/native-tls", "rp-supabase-auth?/native-tls", "rp-supabase-storage?/native-tls", "rp-supabase-functions?/native-tls", "rp-supabase-client?/native-tls", "rp-supabase-realtime?/native-tls", "rp-supabase-graphql?/native-tls"]
 rest = ["dep:rp-postgrest"]
 auth = ["dep:rp-supabase-auth"]
 realtime = ["dep:rp-supabase-realtime"]
 storage = ["dep:rp-supabase-storage"]
 functions = ["dep:rp-supabase-functions"]
+graphql = ["dep:rp-supabase-graphql"]
 typed = ["rest", "dep:rp-supabase-client"]
 typed-client = ["typed", "rp-supabase-client/client"]
 test-util = ["rest", "rp-postgrest/test-util"]
-full = ["rest", "auth", "realtime", "storage", "functions", "typed", "typed-client"]
+full = ["rest", "auth", "realtime", "storage", "functions", "graphql", "typed", "typed-client"]
 
 [dependencies]
 reqwest.workspace = true
@@ -38,6 +41,8 @@ rp-supabase-realtime = { workspace = true, optional = true }
 rp-supabase-storage = { workspace = true, optional = true }
 rp-supabase-functions = { workspace = true, optional = true }
 rp-supabase-client = { workspace = true, optional = true }
+rp-supabase-http.workspace = true
+rp-supabase-graphql = { workspace = true, optional = true }
 
 [dev-dependencies]
 mockito.workspace = true

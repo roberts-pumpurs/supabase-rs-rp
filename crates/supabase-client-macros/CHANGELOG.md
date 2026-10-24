@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking
+
+- Value-form `key!(name)` carries a readable name marker in `Key<K, N>`. Explicit
+  annotations must infer the second parameter; type-form keys and `ColumnByKey`
+  bounds are unchanged.
+- Generated records store their private marker inside a private generic module.
+  User fields remain public and independently movable.
+
+### Fixed
+
+- Concrete root and nested column errors use generated table-local diagnostics;
+  generic roots retain the runtime fallback without additional lookup bounds.
+- Selected-root, relationship-handle and composed-path `column(key!(...))` lookups
+  report the written name rather than encoded character tuples.
+
 ## [0.14.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-client-macros-v0.13.1...rp-supabase-client-macros-v0.14.0) - 2026-10-24
 
 ### Breaking

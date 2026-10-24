@@ -4,6 +4,7 @@ mod error;
 pub use error::FunctionsError;
 pub use reqwest::Method;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
+pub use rp_supabase_http::RetryPolicy;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 pub use url;
@@ -20,6 +21,7 @@ pub struct FunctionsClient {
     http: reqwest::Client,
     base: Url,
     headers: HeaderMap,
+    retry_policy: RetryPolicy,
 }
 
 impl FunctionsClient {
@@ -67,6 +69,7 @@ impl FunctionsClient {
             http,
             base,
             headers,
+            retry_policy: RetryPolicy::default(),
         })
     }
 
@@ -82,6 +85,14 @@ impl FunctionsClient {
         next.headers
             .insert(AUTHORIZATION, sensitive(&format!("Bearer {token}"))?);
         Ok(next)
+    }
+
+    /// Set the retry policy for explicit HTTP 429 responses.
+    /// Mutation requests are not replayed unless the policy permits them.
+    #[must_use]
+    pub const fn with_retry_policy(mut self, policy: RetryPolicy) -> Self {
+        self.retry_policy = policy;
+        self
     }
 
     /// Starts a request to the function `name`. The default method is `POST`.
@@ -103,6 +114,7 @@ impl FunctionsClient {
         };
         InvokeBuilder {
             http: self.http.clone(),
+            retry_policy: self.retry_policy,
             state: url.map(|url| Request {
                 url,
                 method: Method::POST,
@@ -114,21 +126,7 @@ impl FunctionsClient {
 }
 
 fn default_client() -> Result<reqwest::Client, reqwest::Error> {
-    reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::custom(|attempt| {
-            let same_origin = attempt
-                .previous()
-                .last()
-                .is_some_and(|prev| prev.origin() == attempt.url().origin());
-            if !same_origin {
-                attempt.stop()
-            } else if attempt.previous().len() > 10 {
-                attempt.error("too many redirects")
-            } else {
-                attempt.follow()
-            }
-        }))
-        .build()
+    rp_supabase_http::client_builder().build()
 }
 
 fn is_new_format_key(api_key: &str) -> bool {
@@ -161,6 +159,7 @@ struct Request {
 pub struct InvokeBuilder {
     http: reqwest::Client,
     state: Result<Request, FunctionsError>,
+    retry_policy: RetryPolicy,
 }
 
 impl InvokeBuilder {
@@ -238,7 +237,8 @@ impl InvokeBuilder {
         if let Some(body) = request.body {
             builder = builder.body(body);
         }
-        let response = builder.send().await?;
+        let (http, request) = builder.build_split();
+        let response = rp_supabase_http::execute(&http, request?, self.retry_policy).await?;
         let relay = response
             .headers()
             .get(RELAY_ERROR_HEADER)

@@ -49,7 +49,16 @@ pub fn decoder(
     let slots: Vec<_> = fields.iter().map(|field| &field.slot).collect();
     let indices: Vec<_> = (0..fields.len()).collect();
     let identity = quote!(fn() -> #record #args);
-    let marker_init = marker.map(|marker| quote!(#marker: ::core::marker::PhantomData,));
+    let values = fields.iter().map(|field| {
+        let slot = &field.slot;
+        let key = &field.key;
+        quote!(#slot.ok_or_else(|| <#map_access_ident::Error as #rt::schema::__private::serde::de::Error>::missing_field(#key))?)
+    }).collect::<Vec<_>>();
+    let construct = if marker.is_some() {
+        quote!(<#record #args>::new(#(#values),*))
+    } else {
+        quote!(#record { #(#field_names: #values,)* })
+    };
     quote! {
         struct #key_type #params (::core::option::Option<::core::primitive::usize>, ::core::marker::PhantomData<#identity>) #bound;
         struct #key_visitor #params (::core::marker::PhantomData<#identity>) #bound;
@@ -81,10 +90,7 @@ pub fn decoder(
                         _ => { let _: #rt::schema::__private::serde::de::IgnoredAny = #map.next_value()?; }
                     }
                 }
-                ::core::result::Result::Ok(#record {
-                    #(#field_names: #slots.ok_or_else(|| <#map_access_ident::Error as #rt::schema::__private::serde::de::Error>::missing_field(#keys))?,)*
-                    #marker_init
-                })
+                ::core::result::Result::Ok(#construct)
             }
         }
         impl #de_impl #rt::schema::__private::serde::Deserialize<#de> for #record #args #bound {

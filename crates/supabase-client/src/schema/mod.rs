@@ -47,7 +47,9 @@ pub enum Array<T> {
 }
 
 /// A generated relation's exact database identity.
-pub trait Relation {
+pub trait Relation: Sized {
+    /// Generated concrete column lookup metadata.
+    type ColumnLookup: selection::ColumnLookup<Relation = Self>;
     /// `PostgreSQL` schema name.
     const SCHEMA: &'static str;
     /// `PostgreSQL` relation name.
@@ -77,21 +79,21 @@ pub use selection::{Selection, named};
 /// One Unicode scalar in a lossless generated identifier key.
 pub struct Character<const C: char>;
 /// A zero-sized identifier key, independent of the selected value.
-pub struct Key<Name>(core::marker::PhantomData<fn() -> Name>);
-impl<Name> Copy for Key<Name> {}
-impl<Name> Clone for Key<Name> {
+pub struct Key<K, N>(core::marker::PhantomData<fn() -> (K, N)>);
+impl<K, N> Copy for Key<K, N> {}
+impl<K, N> Clone for Key<K, N> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl<Name> Key<Name> {
+impl<K, N> Key<K, N> {
     /// Construct a zero-sized identifier key.
     #[must_use]
     pub const fn new() -> Self {
         Self(core::marker::PhantomData)
     }
 }
-impl<Name> Default for Key<Name> {
+impl<K, N> Default for Key<K, N> {
     fn default() -> Self {
         Self::new()
     }

@@ -46,6 +46,12 @@
         }
       ],
       "tables": [
+        {"name": "notes", "kind": "table", "columns": [
+          {"name": "id", "ty": {"kind": "builtin", "value": "int8"}, "nullable": false, "has_default": false, "generated": false, "identity": "none"},
+          {"name": "owner", "ty": {"kind": "builtin", "value": "int8"}, "nullable": false, "has_default": false, "generated": false, "identity": "none"},
+          {"name": "owner_name", "ty": {"kind": "builtin", "value": "text"}, "nullable": false, "has_default": false, "generated": false, "identity": "none"},
+          {"name": "body", "ty": {"kind": "builtin", "value": "text"}, "nullable": false, "has_default": false, "generated": false, "identity": "none"}
+        ], "primary_key": ["id"], "unique_keys": [], "foreign_keys": [], "is_partition": false, "computed_fields": []},
         {"name": "json_probe", "kind": "table", "columns": [
           {"name": "document", "ty": {"kind": "builtin", "value": "jsonb"}, "nullable": true, "has_default": false, "generated": false, "identity": "none"},
           {"name": "documents", "ty": {"kind": "array", "value": {"kind": "builtin", "value": "jsonb"}}, "nullable": false, "has_default": false, "generated": false, "identity": "none"},

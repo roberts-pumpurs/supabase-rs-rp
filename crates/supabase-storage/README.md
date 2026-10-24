@@ -157,8 +157,55 @@ while let Some(chunk) = download.chunk().await? {
 # }
 ```
 
+## Images and resumable uploads
+
+`TransformOptions` supports width/height, `ResizeMode::{Cover, Contain, Fill}`, quality and
+`ImageFormat::Origin`. Use `public_transformed_url`, `download_public_transformed`,
+`download_transformed` (authenticated streaming), or `create_signed_transformed_url`.
+Image transformation must be enabled on the server. Signing submits the options in the
+`transform` body and reconstructs the trusted local `render/image/sign` URL from the returned
+token. Ordinary signing retains the batch workaround for object names containing `?`.
+
+Signed transformations validate the returned JWT's typed `url` claim against the exact
+requested bucket/key before returning a URL (this is not cryptographic verification).
+Known upstream limitation: the single-object signing route uses JavaScript `decodeURI`,
+which preserves reserved escapes such as `%3F`; a question-mark key can therefore produce
+a claim that the image renderer rejects with `InvalidSignature`. The client reports
+`StorageError::Protocol` with `remote signed-path mismatch` instead of issuing an unusable
+URL. It cannot repair a signed claim without the server's signing key, and never uploads
+a transformed replacement object. See upstream
+[`getSignedURL.ts`](https://github.com/supabase/storage/blob/master/src/http/routes/object/getSignedURL.ts)
+and [`signObjectUrl`](https://github.com/supabase/storage/blob/master/src/storage/object.ts).
+
+`create_resumable_upload(path, length, options)` creates a TUS 1.0 session.
+Persist its sensitive `url()` **and** the creation option `upsert`; reopen it using
+`StorageClient::resume_upload(&url, upsert)`. The overwrite intent is sent on POST, HEAD,
+and every PATCH, including after reopening.
+Creation completes a zero-byte object; an empty chunk on a confirmed complete upload is a local no-op.
+`write_chunk(offset, Bytes)` accepts exactly 6 MiB except the final tail, including zero bytes
+for an empty object. No full-file buffering is required. Reopening performs HEAD; conflicts
+and mismatched acknowledgements reconcile with HEAD. A failed or cancelled PATCH leaves
+the session dirty, and the next write consults HEAD before accepting bytes. Supply bytes
+from the refreshed offset; stale offsets are rejected rather than silently replayed.
+Expired uploads return the server's 404/410 error and must be recreated explicitly.
+
+`with_retry_policy` configures shared 429 handling and survives token/project clones.
+PATCH is always sent once, irrespective of mutation-retry opt-in.
+Default clients follow redirects only within the same origin. A supplied HTTP client retains
+its configuration; callers **must** configure no redirects or same-origin-only redirects,
+because arbitrary redirect policies can forward the custom `apikey` header.
+
+Protocol references:
+[Supabase image transformations](https://supabase.com/docs/guides/storage/serving/image-transformations),
+[Supabase resumable uploads](https://supabase.com/docs/guides/storage/uploads/resumable-uploads),
+[TUS 1.0 protocol](https://tus.io/protocols/resumable-upload).
+
+The ignored `live_transforms_and_resumable_roundtrip` test requires `SUPABASE_URL` and
+`SUPABASE_SERVICE_ROLE_KEY`, an image-enabled local server, and permission to create buckets.
+It checks exact 64×64-to-16×16 PNG rendering and resumed upload/overwrite larger than 6 MiB
+byte-for-byte. `regression_live_questionmark_signed_transform_reports_remote_mismatch`
+checks the explicit upstream signing error for question-mark keys.
+
 ## Limits
 
-- No resumable (TUS) uploads. Each upload sends the whole body in one request.
-- No image transformations and no S3 protocol support.
-- Bucket and object operations only; no analytics or vector buckets.
+- No S3 protocol support, analytics buckets, or vector buckets.

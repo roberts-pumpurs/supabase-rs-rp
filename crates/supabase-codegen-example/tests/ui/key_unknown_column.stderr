@@ -1,0 +1,33 @@
+error[E0277]: no column `titl` on `rp_supabase_codegen_example::database::public::tables::orders::Row`
+ --> tests/ui/key_unknown_column.rs:7:22
+  |
+7 |     let _ = selected.column(key!(titl));
+  |                      ^^^^^^ unknown column
+  |
+  = help: the trait `rp_supabase_client::schema::selection::SelectedColumn<titl>` is not implemented for `rp_supabase_codegen_example::database::public::tables::orders::Row`
+  = note: valid names are the items of the `columns` module next to `rp_supabase_codegen_example::database::public::tables::orders::Row`
+note: required by a bound in `column`
+ --> $WORKSPACE/crates/supabase-client/src/schema/selection.rs
+  |
+  |     fn column<K, N, C>(self, _: Key<K, N>) -> C
+  |        ------ required by a bound in this associated function
+...
+  |         Self::Relation: SelectedColumn<N, Column = C>,
+  |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Selection::column`
+
+error[E0277]: no column `lable` on `rp_supabase_codegen_example::database::public::tables::addresses::Row`
+ --> tests/ui/key_unknown_column.rs:8:30
+  |
+8 |     let _ = selected.billing.column(key!(lable));
+  |                              ^^^^^^ unknown column
+  |
+  = help: the trait `rp_supabase_client::schema::selection::SelectedColumn<lable>` is not implemented for `rp_supabase_codegen_example::database::public::tables::addresses::Row`
+  = note: valid names are the items of the `columns` module next to `rp_supabase_codegen_example::database::public::tables::addresses::Row`
+note: required by a bound in `Handle::<O, P, E, A, D>::column`
+ --> $WORKSPACE/crates/supabase-client/src/schema/selection.rs
+  |
+  |     pub fn column<K, N, C>(self, _: Key<K, N>) -> C
+  |            ------ required by a bound in this associated function
+...
+  |         E::Target: SelectedColumn<N, Column = C>,
+  |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Handle::<O, P, E, A, D>::column`

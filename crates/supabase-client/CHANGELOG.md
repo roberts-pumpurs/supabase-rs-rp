@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking
+
+- Named value keys carry `Key<K, Name>`; local explicit annotations use `Key<key!(type id), _>`.
+- Handwritten relations must provide `ColumnLookup`; regenerate bindings with the matching codegen release.
+
+### Added
+
+- Optional native TLS and the shared bounded HTTP 429 retry policy.
+
+### Fixed
+
+- Concrete selection errors name the SQL table and list real columns. Generic roots keep readable fallback diagnostics.
+- Key lookup errors name the written identifier, including root, relationship-handle, and composed-path lookups.
+- Private record markers no longer appear in missing-field suggestions. Raw/Unicode fields remain movable and retain their SQL keys.
+- Runtime aliases can have the same name as selected columns, relationships, or keys.
+
+
 ## [0.14.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-client-v0.13.1...rp-supabase-client-v0.14.0) - 2026-10-24
 
 ### Breaking

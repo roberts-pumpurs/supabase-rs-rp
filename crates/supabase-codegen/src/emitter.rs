@@ -66,6 +66,87 @@ fn key_name(name: &Ident, runtime: &syn::Path) -> TokenStream {
     quote!((#(#characters,)*))
 }
 
+fn column_lookup_diagnostic(schema: &str, table: &Table) -> Result<(String, String), Error> {
+    let names = table
+        .columns
+        .iter()
+        .map(|column| column.name.as_str())
+        .chain(
+            table
+                .computed_fields
+                .iter()
+                .map(|field| field.name.as_str()),
+        )
+        .map(|name| ident(name, false).map(|name| name.to_string()))
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    // Diagnostic attributes interpret braces even inside literal database names.
+    let escape = |value: &str| value.replace('{', "{{").replace('}', "}}");
+    let relation = escape(&format!("{schema}.{}", table.name));
+    let valid = if names.is_empty() {
+        "valid columns: (none)".to_owned()
+    } else {
+        format!(
+            "valid columns: {}",
+            escape(&names.into_iter().collect::<Vec<_>>().join(", "))
+        )
+    };
+    Ok((format!("no column `{{Name}}` on table `{relation}`"), valid))
+}
+
+fn column_lookup(schema: &str, table: &Table, runtime: &syn::Path) -> Result<TokenStream, Error> {
+    let (message, note) = column_lookup_diagnostic(schema, table)?;
+    // Resolve the configured path before Name/Selected can shadow its first segment.
+    let mut alias = "__supabase_column_runtime".to_owned();
+    while runtime
+        .segments
+        .iter()
+        .any(|segment| segment.ident == alias)
+    {
+        alias.push('_');
+    }
+    let alias = Ident::new(&alias, Span::call_site());
+    let runtime_path = runtime;
+    let runtime = &alias;
+    Ok(quote!(
+        use #runtime_path as #runtime;
+        #[doc(hidden)]
+        #[diagnostic::on_unimplemented(
+            message = #message,
+            label = "unknown column",
+            note = #note
+        )]
+        pub trait SelectedColumn<Name>: #runtime::Relation {
+            type Column: #runtime::Column<Relation = Self>;
+        }
+        #[diagnostic::do_not_recommend]
+        impl<Name: #runtime::KeyName> SelectedColumn<Name> for Row
+        where
+            Self: #runtime::ColumnByKey<Name::Key>,
+        {
+            type Column = <Self as #runtime::ColumnByKey<Name::Key>>::Column;
+        }
+        #[doc(hidden)]
+        #[derive(::core::marker::Copy, ::core::clone::Clone, ::core::default::Default)]
+        pub struct ColumnLookup;
+        impl #runtime::selection::ColumnLookup for ColumnLookup {
+            type Relation = Row;
+        }
+        impl ColumnLookup {
+            #[must_use]
+            #[expect(
+                clippy::unused_self,
+                reason = "The receiver selects table-local diagnostics through inherent method dispatch."
+            )]
+            pub fn column<Name, Selected>(self, _: Name) -> #runtime::selection::Scalar<Selected>
+            where
+                Row: SelectedColumn<Name, Column = Selected>,
+            {
+                #runtime::selection::Scalar::<Selected>::new()
+            }
+        }
+    ))
+}
+
 fn unique<'a>(
     names: impl IntoIterator<Item = &'a str>,
     camel: bool,
@@ -518,7 +599,14 @@ impl Emitter<'_> {
                 derives.push(derive.clone());
             }
         }
-        quote!(#(#attrs)* #(#targeted)* #[derive(#(#derives),*)])
+        quote!(
+            #(#attrs)* #(#targeted)*
+            #[allow(
+                clippy::derive_partial_eq_without_eq,
+                reason = "The caller selects derives; SQL fields and custom overrides may not implement Eq"
+            )]
+            #[derive(#(#derives),*)]
+        )
     }
 
     fn ty(&self, ty: &PgType, depth: usize) -> Result<TokenStream, Error> {
@@ -1217,6 +1305,7 @@ pub fn generate(snapshot: &Snapshot, config: &Config) -> Result<String, Error> {
                 config,
                 &mut used_relationship_aliases,
             )?;
+            let column_lookup = column_lookup(&schema_name, table, &runtime)?;
             let wire_name = &table.name;
             unique(
                 table
@@ -1313,10 +1402,11 @@ pub fn generate(snapshot: &Snapshot, config: &Config) -> Result<String, Error> {
                     #[allow(unused_imports)] use super::*;
                     #decoration pub struct Row { #fields }
                     impl #runtime::Relation for Row {
+                        type ColumnLookup = ColumnLookup;
                         const SCHEMA: &'static ::core::primitive::str = #schema_name;
                         const NAME: &'static ::core::primitive::str = #wire_name;
                     }
-                    impl #runtime::Projection<Row> for Row {
+                    impl #runtime::Projection<Self> for Row {
                         const SELECT_LEN: ::core::primitive::usize = 1;
                         fn write_selection(output: &mut ::std::string::String) {
                             output.push('*');
@@ -1328,6 +1418,7 @@ pub fn generate(snapshot: &Snapshot, config: &Config) -> Result<String, Error> {
                     pub fn query(client: #runtime::Postgrest) -> #runtime::Query<Row, Row> {
                         #runtime::query::<Row>(client)
                     }
+                    #column_lookup
                     pub mod columns { #column_markers }
                     pub mod relationships { #relationship_markers }
                     #writes

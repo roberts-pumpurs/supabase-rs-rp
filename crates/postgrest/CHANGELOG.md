@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+
+- Shared bounded HTTP 429 retry policy, with safe read replay and explicit mutation opt-in.
+- Optional native TLS while retaining rustls by default and supplied-client transport settings.
+
+
 ## [3.2.2](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-postgrest-v3.2.1...rp-postgrest-v3.2.2) - 2026-10-24
 
 ### Other

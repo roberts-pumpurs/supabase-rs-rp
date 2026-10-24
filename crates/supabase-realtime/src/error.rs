@@ -1,4 +1,3 @@
-use fastwebsockets::WebSocketError;
 use rp_supabase_auth::error::AuthError;
 
 use crate::message::postgres_changes::PostgresDataChangeEvent;
@@ -12,8 +11,6 @@ pub enum SupabaseRealtimeError {
     HostStringNotPresent,
     #[error("websocket processing failed")]
     WsProcessingError,
-    #[error("HTTP error: {0}")]
-    HyperError(#[from] hyper::http::Error),
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
     #[error("cannot load TLS certificates")]
@@ -24,8 +21,16 @@ pub enum SupabaseRealtimeError {
     UnableConvertDomainToServerName,
     #[error("cannot look up host {host}:{port}")]
     UnableToLookUpHost { host: String, port: u16 },
-    #[error("websocket error: {0}")]
-    WebsocketError(#[from] WebSocketError),
+    #[error("websocket transport error: {0}")]
+    Transport(#[from] tokio_tungstenite::tungstenite::Error),
+    #[error("reconnect budget exhausted")]
+    ReconnectExhausted,
+    #[error("heartbeat acknowledgement timed out")]
+    HeartbeatTimeout,
+    #[error("websocket connection handshake timed out")]
+    ConnectTimeout,
+    #[error("websocket write timed out")]
+    WriteTimeout,
     #[error("cannot parse URL: {0}")]
     UrlParseError(#[from] url::ParseError),
     #[error("JSON error: {0}")]

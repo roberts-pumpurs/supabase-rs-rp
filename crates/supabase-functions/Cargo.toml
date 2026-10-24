@@ -16,12 +16,18 @@ categories = ["api-bindings", "web-programming::http-client", "asynchronous"]
 [lib]
 name = "rp_supabase_functions"
 
+[features]
+default = ["rustls"]
+rustls = ["rp-supabase-http/rustls"]
+native-tls = ["rp-supabase-http/native-tls"]
+
 [dependencies]
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 url.workspace = true
 thiserror.workspace = true
+rp-supabase-http.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
