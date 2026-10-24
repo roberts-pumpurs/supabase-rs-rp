@@ -14,6 +14,6 @@ runs:
       with:
         toolchain: ${{ inputs.toolchain }}
         components: "rustfmt,clippy,cargo,llvm-tools-preview"
-    - uses: Swatinem/rust-cache@v2
+    - uses: Swatinem/rust-cache@v2.9.3
       with:
         cache-on-failure: true
