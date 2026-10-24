@@ -154,7 +154,7 @@ def main():
     if len(inspected) != 1 or inspected[0].get("Name") != "/" + REALTIME or not inspected[0].get("State", {}).get("Running"):
         raise RuntimeError("expected running fixture Realtime container is missing")
     before = inspected[0]["State"]["StartedAt"]
-    for target, source in (("SUPABASE_ANON_KEY", "ANON_KEY"), ("SUPABASE_SERVICE_ROLE_KEY", "SERVICE_ROLE_KEY"), ("SUPABASE_MAILPIT_URL", "INBUCKET_URL")):
+    for target, source in (("SUPABASE_ANON_KEY", "ANON_KEY"), ("SUPABASE_SERVICE_ROLE_KEY", "SERVICE_ROLE_KEY"), ("SUPABASE_MAILPIT_URL", "MAILPIT_URL")):
         if not status.get(source):
             raise RuntimeError(f"fixture status missing required {source}")
         ENV[target] = status[source]

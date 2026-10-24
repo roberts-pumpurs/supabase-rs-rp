@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
         with:
           submodules: true
           fetch-depth: 0
@@ -26,12 +26,12 @@ jobs:
         uses: ./.github/actions/setup-repo
         with:
           toolchain: "1.88.0"
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: "3.11"
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v3.0.1
         with:
-          version: 2.109.1
+          version: 2.122.0
       - name: Start repository fixture stack
         # The CLI's successful startup summary contains local credentials.
         shell: bash

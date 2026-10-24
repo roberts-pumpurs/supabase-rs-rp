@@ -112,7 +112,7 @@ The [codegen example](./crates/supabase-codegen-example/README.md) shows build-s
 
 ## Supabase instance for local development
 
-1. Install Docker and [Supabase CLI](https://supabase.com/docs/guides/cli/getting-started). CI uses CLI 2.109.1.
+1. Install Docker and [Supabase CLI](https://supabase.com/docs/guides/cli/getting-started) 2.122.0 or newer. CI pins CLI 2.122.0.
 2. Run `supabase start` from this repository. The fixture API uses port 56421 and PostgreSQL uses port 56422.
 3. Run `cargo xtask live` with Python 3.11 or newer.
 
