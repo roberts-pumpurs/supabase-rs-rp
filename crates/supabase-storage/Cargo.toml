@@ -2,7 +2,7 @@
 name = "rp-supabase-storage"
 version = "0.2.1"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.88"
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true

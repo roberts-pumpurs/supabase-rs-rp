@@ -2,7 +2,7 @@
 name = "rp-supabase-client-macros"
 version = "0.13.1"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.88"
 license.workspace = true
 repository.workspace = true
 authors.workspace = true

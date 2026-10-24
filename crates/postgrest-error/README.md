@@ -29,7 +29,7 @@ the exact wire error code and provides typed classifications for `PostgreSQL`,
 rp-postgrest-error = "0.8"
 ```
 
-Requires Rust 1.85 or later.
+Requires Rust 1.88 or later.
 
 ## Decode an HTTP error response
 

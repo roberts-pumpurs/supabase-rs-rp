@@ -3,7 +3,7 @@ name = "rp-supabase-codegen-example"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-rust-version = "1.85"
+rust-version = "1.88"
 publish = false
 
 [package.metadata.cargo-machete]

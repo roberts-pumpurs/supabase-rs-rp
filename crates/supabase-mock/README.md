@@ -15,7 +15,7 @@ Use it in tests only. The tokens are signed with a fixed test secret.
 rp-supabase-mock = "0.10"
 ```
 
-Requires Rust 1.85 or later.
+Requires Rust 1.88 or later.
 
 ## Example
 

@@ -2,7 +2,7 @@
 
 [![crates.io](https://img.shields.io/crates/v/rp-postgrest.svg)](https://crates.io/crates/rp-postgrest) [![docs.rs](https://docs.rs/rp-postgrest/badge.svg)](https://docs.rs/rp-postgrest)
 
-A concrete asynchronous PostgREST client owned by this workspace. Requires Rust 1.85 or newer. The package is `rp-postgrest`; the Rust library is `rp_postgrest`.
+A concrete asynchronous PostgREST client owned by this workspace. Requires Rust 1.88 or newer. The package is `rp-postgrest`; the Rust library is `rp_postgrest`.
 
 ## Install and configure
 

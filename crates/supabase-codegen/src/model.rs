@@ -278,11 +278,11 @@ pub(crate) fn apply_not_null(
                     } else {
                         format!("{}_{index}", base.strip_prefix("r#").unwrap_or(&base))
                     };
-                    if target == &format!("{schema_name}.functions.{name}.Record") {
-                        if let ReturnType::Record(columns) = &mut function.returns {
-                            set_not_null(columns, fields, target)?;
-                            found = true;
-                        }
+                    if target == &format!("{schema_name}.functions.{name}.Record")
+                        && let ReturnType::Record(columns) = &mut function.returns
+                    {
+                        set_not_null(columns, fields, target)?;
+                        found = true;
                     }
                 }
             }

@@ -2,6 +2,7 @@
 name = "rp-supabase-realtime"
 description = "Supabase Realtime client: typed postgres changes, broadcast, and presence over websockets"
 version.workspace = true
+rust-version = "1.88"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true

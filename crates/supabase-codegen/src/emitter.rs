@@ -256,16 +256,15 @@ fn relationship_aliases(
         .collect::<Result<_, _>>()?;
     let mut aliases: BTreeMap<String, Vec<Ident>> = BTreeMap::new();
     for (alias, names) in alias_candidates {
-        if names.len() == 1 && !occupied.contains(&alias) {
-            if let Some(name) = names.first() {
-                aliases
-                    .entry(name.clone())
-                    .or_default()
-                    .push(syn::parse_str(&alias).map_err(|error| {
-                        invalid(format!("invalid relationship alias: {error}"))
-                    })?);
-                occupied.insert(alias);
-            }
+        if names.len() == 1
+            && !occupied.contains(&alias)
+            && let Some(name) = names.first()
+        {
+            aliases.entry(name.clone()).or_default().push(
+                syn::parse_str(&alias)
+                    .map_err(|error| invalid(format!("invalid relationship alias: {error}")))?,
+            );
+            occupied.insert(alias);
         }
     }
     for (name, _, _, _) in edges {
