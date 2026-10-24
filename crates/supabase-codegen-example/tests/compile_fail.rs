@@ -21,7 +21,7 @@ renamed = {{ package = "rp-supabase-client", path = {client:?} }}
 serde = {{ version = "1", features = ["derive"] }}
 serde_json = {{ version = "1", features = ["arbitrary_precision"] }}
 chrono = {{ version = "0.4", default-features = false, features = ["serde", "clock", "std"] }}
-typed-builder = "0.21"
+typed-builder = "0.23"
 "#
     );
     fs::write(directory.join("Cargo.toml"), document).unwrap();
