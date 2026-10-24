@@ -1,6 +1,6 @@
 [package]
 name = "supabase-rp"
-version = "0.6.1"
+version = "0.7.0"
 edition = "2024"
 rust-version = "1.88"
 license.workspace = true
@@ -22,6 +22,7 @@ rustls = ["rp-supabase-http/rustls", "rp-postgrest?/rustls", "rp-supabase-auth?/
 native-tls = ["rp-supabase-http/native-tls", "rp-postgrest?/native-tls", "rp-supabase-auth?/native-tls", "rp-supabase-storage?/native-tls", "rp-supabase-functions?/native-tls", "rp-supabase-client?/native-tls", "rp-supabase-realtime?/native-tls", "rp-supabase-graphql?/native-tls"]
 rest = ["dep:rp-postgrest"]
 auth = ["dep:rp-supabase-auth"]
+file-session-store = ["auth", "rp-supabase-auth/file-session-store"]
 realtime = ["dep:rp-supabase-realtime"]
 storage = ["dep:rp-supabase-storage"]
 functions = ["dep:rp-supabase-functions"]
@@ -29,7 +30,7 @@ graphql = ["dep:rp-supabase-graphql"]
 typed = ["rest", "dep:rp-supabase-client"]
 typed-client = ["typed", "rp-supabase-client/client"]
 test-util = ["rest", "rp-postgrest/test-util"]
-full = ["rest", "auth", "realtime", "storage", "functions", "graphql", "typed", "typed-client"]
+full = ["rest", "auth", "realtime", "storage", "functions", "graphql", "typed", "typed-client", "file-session-store"]
 
 [dependencies]
 reqwest.workspace = true

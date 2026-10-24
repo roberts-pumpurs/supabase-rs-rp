@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.6.1](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/supabase-rp-v0.6.0...supabase-rp-v0.6.1) - 2026-10-24
+## [0.7.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/supabase-rp-v0.6.0...supabase-rp-v0.7.0) - 2026-10-24
 
-### Added
+### Breaking
 
-- expand Supabase clients and typed query diagnostics
+- Public re-exports move to auth/realtime 0.12, typed client 0.15, and storage 0.3. Regenerate bindings with codegen 0.15.
 
 ### Added
 
@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shared bounded 429 retry configuration and native TLS feature forwarding for HTTP and WebSockets.
 - Explicit server-only admin client construction through `Client::admin`.
 - OAuth/anonymous sessions, pluggable stores, MFA/admin methods, resumable uploads, image transforms, and reconnect through the service crates.
+- The `file-session-store` feature exposes auth file persistence without a direct auth dependency. `full` includes it.
 
 ### Changed
 
