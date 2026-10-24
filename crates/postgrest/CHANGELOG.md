@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [3.2.2](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-postgrest-v3.2.1...rp-postgrest-v3.2.2) - 2026-10-24
+
+### Other
+
+- raise the minimum Rust version to 1.88
+
 ## [3.2.1](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-postgrest-v3.2.0...rp-postgrest-v3.2.1) - 2026-10-08
 
 ### Fixed

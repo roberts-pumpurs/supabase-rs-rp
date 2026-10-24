@@ -1,7 +1,7 @@
 [package]
 name = "rp-supabase-codegen"
 description = "Build-script-first Rust bindings for PostgreSQL and Supabase schemas"
-version = "0.13.1"
+version = "0.14.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true

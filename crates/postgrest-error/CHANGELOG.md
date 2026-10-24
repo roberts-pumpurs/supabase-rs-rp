@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.4](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-postgrest-error-v0.8.3...rp-postgrest-error-v0.8.4) - 2026-10-24
+
+### Other
+
+- raise the minimum Rust version to 1.88
+
 ## [0.8.3](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-postgrest-error-v0.8.2...rp-postgrest-error-v0.8.3) - 2026-10-08
 
 ### Fixed
