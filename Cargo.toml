@@ -90,7 +90,7 @@ rp-postgrest-error = { path = "crates/postgrest-error", version = "0.8" }
 rp-supabase-realtime = { path = "crates/supabase-realtime", version = "0.12", default-features = false }
 rp-supabase-codegen = { path = "crates/supabase-codegen", version = "0.15" }
 rp-postgrest = { path = "crates/postgrest", version = "3.3", default-features = false }
-rp-supabase-client-macros = { path = "crates/supabase-client-macros", version = "=0.15.0" }
+rp-supabase-client-macros = { path = "crates/supabase-client-macros", version = "=0.15.1" }
 rp-supabase-http = { path = "crates/supabase-http", version = "0.1", default-features = false }
 rp-supabase-graphql = { path = "crates/supabase-graphql", version = "0.1", default-features = false }
 
