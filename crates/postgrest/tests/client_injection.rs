@@ -41,7 +41,12 @@ async fn assert_supplied_client_timeout(query: QueryKind) {
         QueryKind::From => postgrest.from("items").select("*"),
         QueryKind::Rpc => postgrest.rpc("search", r#"{"term":"rust"}"#),
     };
-    let request = tokio::spawn(builder.execute());
+    let request = builder.execute();
+    assert!(
+        core::mem::size_of_val(&request) <= 1024,
+        "PostgREST execution must leave stack space for nested caller futures"
+    );
+    let request = tokio::spawn(request);
 
     let error = timeout(Duration::from_secs(5), async {
         accepted_receiver

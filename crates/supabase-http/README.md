@@ -16,5 +16,8 @@ never replayed. The final response keeps its status, headers and body. Dropping
 the request future cancels a pending request or backoff. Retries do not provide
 exactly-once execution.
 
+The execution future boxes its retry state to keep nested caller futures small.
+Only the next request is retained during an in-flight attempt or backoff.
+
 Requires Rust 1.88. Default TLS is rustls. For native TLS, disable default features
 and enable `native-tls`. A supplied reqwest client keeps its own TLS policy.

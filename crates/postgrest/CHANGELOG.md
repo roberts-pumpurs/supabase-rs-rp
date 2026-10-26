@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [3.3.1](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-postgrest-v3.3.0...rp-postgrest-v3.3.1) - 2026-10-26
+
+### Fixed
+
+- Require rp-supabase-http 0.1.1 to keep execution futures small and avoid debug-build stack overflows in nested callers.
+
 ## [3.3.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-postgrest-v3.2.2...rp-postgrest-v3.3.0) - 2026-10-24
 
 ### Added

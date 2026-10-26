@@ -6,6 +6,17 @@
 use core::time::Duration;
 use rp_supabase_http::{RetryPolicy, execute};
 
+#[test]
+fn execution_future_keeps_retry_state_off_the_caller_stack() {
+    let http = reqwest::Client::new();
+    let request = http.get("http://localhost/resource").build().unwrap();
+    let future = execute(&http, request, RetryPolicy::default());
+    assert!(
+        core::mem::size_of_val(&future) <= 64,
+        "HTTP execution must not embed the retry state in its caller"
+    );
+}
+
 #[tokio::test]
 async fn rate_limited_read_stops_at_budget_and_keeps_final_response() {
     let mut server = mockito::Server::new_async().await;

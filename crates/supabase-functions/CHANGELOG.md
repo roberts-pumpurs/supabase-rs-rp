@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-functions-v0.1.2...rp-supabase-functions-v0.1.3) - 2026-10-26
+
+### Fixed
+
+- Require rp-supabase-http 0.1.1 to keep HTTP retry state out of caller futures and avoid debug-build stack overflows.
+
 ## [0.1.2](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-functions-v0.1.1...rp-supabase-functions-v0.1.2) - 2026-10-24
 
 ### Added

@@ -1,5 +1,7 @@
 #![cfg_attr(doc, doc = include_str!("../README.md"))]
 
+use core::future::Future;
+use core::pin::Pin;
 use core::time::Duration;
 use std::time::SystemTime;
 
@@ -115,36 +117,39 @@ impl RetryPolicy {
 /// bodies that reqwest cannot clone are sent once. Dropping this future cancels
 /// an in-flight request or a pending backoff.
 ///
+/// The retry state is boxed so it does not enlarge callers' async state machines.
+///
 /// # Errors
 /// Returns reqwest's transport error immediately, without replaying the request.
-pub async fn execute(
+pub fn execute(
     client: &reqwest::Client,
     mut request: reqwest::Request,
     policy: RetryPolicy,
-) -> Result<reqwest::Response, reqwest::Error> {
-    if !policy.permits(request.method()) {
-        return client.execute(request).await;
-    }
-    let Some(template) = request.try_clone() else {
-        return client.execute(request).await;
-    };
-    let mut attempt = 0;
-    loop {
-        let response = client.execute(request).await?;
-        if response.status() != reqwest::StatusCode::TOO_MANY_REQUESTS
-            || attempt >= policy.max_retries
-        {
-            return Ok(response);
+) -> Pin<Box<impl Future<Output = Result<reqwest::Response, reqwest::Error>> + Send + '_>> {
+    Box::pin(async move {
+        let replay = policy.permits(request.method());
+        let mut attempt = 0;
+        loop {
+            // Sending consumes the current request. Retain only the next attempt.
+            let next = if replay && attempt < policy.max_retries {
+                request.try_clone()
+            } else {
+                None
+            };
+            let response = client.execute(request).await?;
+            if response.status() != reqwest::StatusCode::TOO_MANY_REQUESTS {
+                return Ok(response);
+            }
+            let Some(next) = next else {
+                return Ok(response);
+            };
+            let Some(delay) = policy.delay(&response, attempt) else {
+                return Ok(response);
+            };
+            drop(response);
+            tokio::time::sleep(delay).await;
+            attempt = attempt.saturating_add(1);
+            request = next;
         }
-        let Some(delay) = policy.delay(&response, attempt) else {
-            return Ok(response);
-        };
-        let Some(next) = template.try_clone() else {
-            return Ok(response);
-        };
-        drop(response);
-        tokio::time::sleep(delay).await;
-        attempt = attempt.saturating_add(1);
-        request = next;
-    }
+    })
 }
