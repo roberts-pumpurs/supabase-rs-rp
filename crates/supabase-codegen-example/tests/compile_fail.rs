@@ -30,6 +30,11 @@ typed-builder = "0.23"
         directory.join("Cargo.lock"),
     )
     .unwrap();
+    fs::write(
+        directory.join("clippy.toml"),
+        "avoid-breaking-exported-api = true\n",
+    )
+    .unwrap();
     let header = format!(
         "#![allow(dead_code)]\nextern crate renamed as rp_supabase_client;\nmod bindings {{ include!({:?}); }}\nmod database {{ include!({:?}); }}\n#[allow(unused_imports, reason = \"Shared harness supports independent consumer snippets\")]\nuse bindings::public::tables;\nuse database::public;\nuse database::public::tables as rel;\nuse rp_supabase_client::rp_postgrest::Postgrest;\nuse rp_supabase_client::schema::Selection;\n#[path = {:?}] mod relationship_projections;\n#[allow(clippy::wildcard_imports, reason = \"Shared harness exposes the DTOs used by independent snippets\")]\nuse relationship_projections::*;\nrp_supabase_client::projection! {{ struct Id for bindings::public::tables::a_b {{ id }} }}\nrp_supabase_client::projection! {{ struct OtherOrder for database::public::tables::orders {{ id, billing: embed(database::public::tables::orders::relationships::orders_billing, AddressSummary) }} }}\n",
         PathBuf::from(env!("OUT_DIR")).join("contract_bindings.rs"),
@@ -52,7 +57,12 @@ fn consumer(client: Postgrest) {{
         PathBuf::from(env!("OUT_DIR")).join("runtime_selected.rs"),
         PathBuf::from(env!("OUT_DIR")).join("runtime_prefixed.rs"),
     );
+    let exported_bindings = format!(
+        "pub mod exported_bindings {{ include!({:?}); }} fn consumer(c: Postgrest) {{ let _ = rp_supabase_client::select!(rel::orders::Row => {{ id }}).query(c); }}",
+        PathBuf::from(env!("OUT_DIR")).join("database.rs"),
+    );
     let cases = [
+        ("exported_bindings", exported_bindings.as_str(), true),
         (
             "codegen_runtime_generic_name_collision",
             renamed_runtimes.as_str(),
@@ -552,7 +562,7 @@ fn consumer(client: Postgrest) {{
         .unwrap();
         let mut command = Command::new(env!("CARGO"));
         command.current_dir(&directory);
-        if name == "local_selection_positive" {
+        if matches!(name, "local_selection_positive" | "exported_bindings") {
             command.args([
                 "clippy",
                 "--offline",
@@ -565,6 +575,7 @@ fn consumer(client: Postgrest) {{
                 "-W",
                 "clippy::nursery",
             ]);
+            command.env("CLIPPY_CONF_DIR", &directory);
         } else {
             command.args(["check", "--offline", "--quiet"]);
         }

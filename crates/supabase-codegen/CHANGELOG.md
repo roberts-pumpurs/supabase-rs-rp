@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Use `#[allow(clippy::unused_self)]` on generated column lookup methods. Clippy skips this
+  lint for exported methods with its default configuration, so `#[expect]` causes unfulfilled
+  lint expectation errors in consumers that deny warnings.
+
 ## [0.15.0](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-codegen-v0.14.0...rp-supabase-codegen-v0.15.0) - 2026-10-24
 
 ### Added

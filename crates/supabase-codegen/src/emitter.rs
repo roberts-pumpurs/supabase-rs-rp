@@ -133,7 +133,7 @@ fn column_lookup(schema: &str, table: &Table, runtime: &syn::Path) -> Result<Tok
         }
         impl ColumnLookup {
             #[must_use]
-            #[expect(
+            #[allow(
                 clippy::unused_self,
                 reason = "The receiver selects table-local diagnostics through inherent method dispatch."
             )]
