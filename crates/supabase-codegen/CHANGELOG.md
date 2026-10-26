@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.15.1](https://github.com/roberts-pumpurs/supabase-rs-rp/compare/rp-supabase-codegen-v0.15.0...rp-supabase-codegen-v0.15.1) - 2026-10-26
+
+### Fixed
+
+- *(codegen)* allow unused self in exported bindings
+
 ### Fixed
 
 - Use `#[allow(clippy::unused_self)]` on generated column lookup methods. Clippy skips this

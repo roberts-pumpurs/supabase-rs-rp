@@ -2125,7 +2125,7 @@ dependencies = [
 
 [[package]]
 name = "rp-supabase-client"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "futures",
  "mockito",
@@ -2141,7 +2141,7 @@ dependencies = [
 
 [[package]]
 name = "rp-supabase-client-macros"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2150,7 +2150,7 @@ dependencies = [
 
 [[package]]
 name = "rp-supabase-codegen"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "clap",
  "heck",
